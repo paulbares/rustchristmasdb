@@ -6,7 +6,7 @@ use arrow::datatypes::{ArrowPrimitiveType, Field, Int32Type, UInt64Type};
 #[derive(Debug)]
 pub struct ChunkArray {
     field: Field,
-    arrays: Vec<Arc<dyn Array>>
+    arrays: Vec<Arc<dyn Array>>,
 }
 
 impl ChunkArray {
@@ -21,38 +21,6 @@ impl ChunkArray {
             field,
             arrays: v,
         }
-        // let builder = PrimitiveBuilder::<Int32Type>::new(10);
-        // let mut primitive_array_builder = UInt32Builder::new(size as usize);
-        // primitive_array_builder.append_values(&vec![2, 3], &vec![true, true]);
-
-        // primitive_array_builder.append_value(4);
-        // println!("{:?}", primitive_array_builder);
-        // let primitive_array = primitive_array_builder.finish();
-        // Long arrays will have an ellipsis printed in the middle
-        // println!("{:?}", primitive_array);
-        // primitive_array_builder.append_value(8);
-        // let array = primitive_array_builder.finish();
-        // println!("{:?}", primitive_array);
-        // println!("{:?}", array);
-
-        // let mut buffer = MutableBuffer::new(size as usize);
-        // unsafe { buffer.push_unchecked(0); }
-        // unsafe { buffer.push_unchecked(1); }
-        // unsafe { buffer.push_unchecked(2); }
-        // unsafe { buffer.push_unchecked(3); }
-        // unsafe { buffer.push_unchecked(5); }
-        // for i in 0..=64 {
-        //     unsafe { buffer.push_unchecked(i); }
-        // }
-        // println!("{:?}", buffer);
-        // let builder = ArrayData::builder(field.data_type().clone())
-        //     .len(size as usize)
-        //     .add_buffer(Buffer::from(buffer));
-        // println!("{:?}", builder);
-        // builder.
-        // let data = builder.build().unwrap();
-        // let data = unsafe { builder.build_unchecked() };
-        // println!("{:?}", data);
     }
 
     pub fn add_array(&mut self, array: PrimitiveArray<UInt64Type>) {
@@ -72,5 +40,9 @@ impl ChunkArray {
 
     fn is_power_of_two(number: u32) -> bool {
         number > 0 && ((number & (number - 1)) == 0)
+    }
+
+    pub fn append_uint64(&mut self, v: u64) {
+
     }
 }

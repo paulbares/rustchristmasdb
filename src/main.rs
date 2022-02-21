@@ -27,7 +27,7 @@ fn main() {
 
     let id_array = UInt64Array::from(vec![0, 1, 2, 3, 4]);
     let product_array =
-        StringArray::from(vec!["syrup", "tofu", "mozzarella", "coca cola", "cheese"]);
+        StringArray::from(vec!["syrup", "tofu", "mozzarella", "syrup", "tofu"]);
     let price_array = Float64Array::from(vec![2f64, 8f64, 4f64, 2f64, 10f64]);
     let schema = Schema::new(vec![
         Field::new("id", DataType::UInt64, false),
@@ -35,11 +35,11 @@ fn main() {
         Field::new("price", DataType::Float64, false),
     ]);
 
-    let schemaRef = Arc::new(schema);
-    let datastore = Store::new(schemaRef, vec![0], 4);
+    let schema_ref = Arc::new(schema);
+    let mut store = Store::new(schema_ref, vec![0], 4);
     // FIXME create a utility method?
     let batch = RecordBatch::try_new(
-        datastore.schema(),
+        store.schema(),
         vec![
             Arc::new(id_array),
             Arc::new(product_array),
@@ -51,10 +51,15 @@ fn main() {
     // let col = batch.column(1);
     // let arr = col.as_any().downcast_ref::<StringArray>().unwrap();
 
-    datastore.load(MAIN_SCENARIO_NAME, &batch);
+    store.load(MAIN_SCENARIO_NAME, &batch);
 
     // println!("batch: {:?}", batch);
     // println!("arr: {:?}", arr);
-    println!("Datastore: {:?}", datastore);
-    datastore.show();
+    println!("Datastore: {:?}", store);
+
+    // Try to aggregate by hand.
+    for row in 0..*store.row_count.borrow() {
+        let option = store.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap();
+        // let's aggregate by product
+    }
 }
