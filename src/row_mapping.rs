@@ -49,7 +49,7 @@ pub struct IntIntMapRowMapping {
 impl IntIntMapRowMapping {
     pub fn new() -> Box<dyn RowMapping> {
         Box::new(IntIntMapRowMapping {
-            mapping: RefCell::new(HashMap::new())
+            mapping: RefCell::new(HashMap::new()),
         })
     }
 }
