@@ -1,45 +1,81 @@
-use arrow::datatypes::{DataType, Field, Float64Type};
+use std::sync::Arc;
+use arrow::array::{Array, ArrayData, ArrayDataBuilder, ArrayRef, Float64Builder, make_array, PrimitiveArray, PrimitiveBuilder};
+use arrow::buffer::Buffer;
+use arrow::datatypes::{ArrowPrimitiveType, DataType, Field, Float64Type};
 use crate::chunk_array::ChunkArray;
 use crate::datastore::CHUNK_DEFAULT_SIZE;
 
-trait Aggregator {
-    fn aggregate(&self, source_position: u32, destination_position: u32);
+pub trait Aggregator<T: ArrowPrimitiveType> {
+    fn aggregate(&mut self, source_position: u32, destination_position: u32);
 
-    fn get_destination(&self) -> &ChunkArray;
+    fn get_destination(&self) -> &PrimitiveArray<T>;
+
+    fn finish(&mut self);
 }
 
-struct SumAggregator<'a> {
-    source: &'a ChunkArray,
-    destination: ChunkArray,
+pub struct SumFloat64Aggregator<T: ArrowPrimitiveType> {
+    source: ArrayRef,
+    destination: Option<PrimitiveArray<T>>,
+    buffer: Vec<f64>,
 }
 
-struct SumFloat64Aggregator<'a> {
-    source: &'a ChunkArray,
-    destination: ChunkArray,
+impl<T: ArrowPrimitiveType> SumFloat64Aggregator<T> {
+    fn new(source: ArrayRef) -> SumFloat64Aggregator<T> {
+        let capacity = 4; // FIXME make it grow when to big
+        let mut buffer = Vec::with_capacity(capacity);
+        buffer.resize(capacity, 0f64);
+        SumFloat64Aggregator {
+            source,
+            destination: None,
+            buffer
+        }
+    }
 }
 
-impl Aggregator for SumFloat64Aggregator<'_> {
-    fn aggregate(&self, source_position: u32, destination_position: u32) {
-        let a: f64 = self.source.read::<Float64Type>(source_position);
-        let b: f64 = self.destination.read::<Float64Type>(source_position);
-        // self.destination.set_float(64)
+impl Aggregator<Float64Type> for SumFloat64Aggregator<Float64Type> {
+    fn aggregate(&mut self, source_position: u32, destination_position: u32) {
+        let a: f64 = read::<Float64Type>(&self.source, source_position);
+        let x: Option<&f64> = self.buffer.get(destination_position as usize);
+        let b: f64 = match x {
+            None => { 0f64 }
+            Some(v) => { *v }
+        };
+        self.buffer[destination_position as usize] = a + b;
     }
 
-    fn get_destination(&self,) -> &ChunkArray {
-        &self.destination
+    fn get_destination(&self) -> &PrimitiveArray<Float64Type> {
+        self.destination.as_ref().unwrap()
+    }
+
+    fn finish(&mut self) {
+        // let buffer = Buffer::from_iter(self.buffer.as_slice());
+        let mut builder = Float64Builder::new(4);
+        builder
+            .append_slice(self.buffer.as_slice())
+            .unwrap();
+        let array: PrimitiveArray<Float64Type> = builder.finish();
+        self.destination = Some(array);
     }
 }
 
-struct AggregatorFactory {}
+pub struct AggregatorFactory {}
 
 impl AggregatorFactory {
     pub fn new() -> AggregatorFactory {
         AggregatorFactory {}
     }
 
-    pub fn create(source: &ChunkArray, aggregation_type: &str, destination_column_name: &str) {
+    pub fn create<T: ArrowPrimitiveType>(&self, source: &ChunkArray, aggregation_type: &str, destination_column_name: &str) -> SumFloat64Aggregator<T> {
         // suppport only float64
-        let field = Field::new(destination_column_name, DataType::Float64, false);
-        let array = ChunkArray::new(field, CHUNK_DEFAULT_SIZE);
+        // let field = Field::new(destination_column_name, DataType::Float64, false);
+        let aggregator: SumFloat64Aggregator<T> = SumFloat64Aggregator::new(Arc::clone(source.array.as_ref().unwrap()));
+        // let p: Box<dyn Aggregator<T>> = Box::new(aggregator);
+        aggregator
     }
+}
+
+fn read<T: ArrowPrimitiveType>(array: &ArrayRef, row: u32) -> T::Native {
+    let array = array.as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
+    let result = unsafe { array.value_unchecked(row as usize) };
+    result
 }

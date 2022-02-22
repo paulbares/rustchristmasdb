@@ -14,9 +14,8 @@ impl<T: std::cmp::Eq + Hash> PointDictionary<T> {
 
     pub fn map(&mut self, point: T) -> u32 {
         let len = self.dic.len();
-        self.dic
+        *self.dic
             .entry(point)
-            .or_insert(len as u32);
-        len as u32
+            .or_insert(len as u32)
     }
 }

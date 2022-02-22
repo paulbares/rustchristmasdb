@@ -2,13 +2,14 @@ use std::borrow::Borrow;
 use crate::chunk_array::ChunkArray;
 use crate::row_mapping::{IdentityMapping, RowMapping};
 use arrow::array::{Array, ArrayData, ArrayRef, as_boolean_array, Float64Builder, PrimitiveArray, PrimitiveBuilder, StringArray, UInt32Builder, UInt64Array, UInt64Builder};
-use arrow::datatypes::{ArrowPrimitiveType, DataType, Field, Float64Type, Schema, SchemaRef, UInt64Type};
+use arrow::datatypes::{ArrowPrimitiveType, DataType, Field, Float64Type, Schema, SchemaRef, UInt32Type, UInt64Type};
 use arrow::record_batch::RecordBatch;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Add;
 use std::sync::Arc;
+use arrow::buffer::Buffer;
 use arrow::ipc::{Utf8, Utf8Builder};
 use crate::dictionary_provider::{Dictionary, DictionaryProvider};
 
@@ -23,8 +24,8 @@ pub struct Store {
     array_size: u32,
     pub vector_by_field_by_scenario: HashMap<String, HashMap<String, ChunkArray>>,
     row_mapping_by_field_by_scenario:
-        RefCell<HashMap<String, HashMap<String, Box<dyn RowMapping>>>>,
-    dictionary_provider: DictionaryProvider
+    RefCell<HashMap<String, HashMap<String, Box<dyn RowMapping>>>>,
+    dictionary_provider: DictionaryProvider,
 }
 
 impl Store {
@@ -53,7 +54,7 @@ impl Store {
             schema,
             key_indices,
             array_size,
-            vector_by_field_by_scenario: vector_by_field_by_scenario,
+            vector_by_field_by_scenario,
             row_mapping_by_field_by_scenario: RefCell::new(row_mapping_by_field_by_scenario),
             dictionary_provider: DictionaryProvider::new(),
         }
@@ -64,49 +65,43 @@ impl Store {
     }
 
     pub fn load(&mut self, scenario: &str, batch: &RecordBatch) {
-        // batch.schema()
-        let num_rows = batch.num_rows();
-        let batch_size = self.array_size as usize;
         let arc = batch.schema();
-        let bucket = num_rows % batch_size;
-        let remaining = num_rows / batch_size;
-        for i in 0..=bucket {
-            let slice = batch.slice(
-                i * batch_size,
-                if i < bucket { batch_size } else { remaining },
-            ); // TODO we can create batch
-            for index in 0..slice.columns().len() {
-                let col = slice.column(index);
+        for index in 0..batch.columns().len() {
 
-                if index == 0 {
-                    let mut rc = self.row_count.borrow_mut();
-                    *rc = *rc + col.len() as u64;
-                }
+            let col = batch.column(index);
 
-                let field = arc.field(index);
-                match field.data_type().clone() {
-                    DataType::UInt64 => {
-                        let builder = UInt64Builder::new(batch_size);
-                        self.primitive::<UInt64Type>(col, scenario, field, builder);
-                    }
-                    DataType::Float64 => {
-                        let builder = Float64Builder::new(batch_size);
-                        self.primitive::<Float64Type>(col, scenario, field, builder);
-                    }
-                    DataType::Utf8 => {
-                        let string_array = col.as_any().downcast_ref::<StringArray>().unwrap();
-                        let dic = self.dictionary_provider.dicos
-                            .entry(field.name().to_string())
-                            .or_insert(Dictionary::new());
-                        let mut builder = UInt32Builder::new(string_array.len());
-                        for element in string_array {
-                            builder.append_value(*dic.map(element.unwrap().to_string()));
-                        }
-                        self.get_chunk_array(scenario, field)
-                            .add_array_primitive(builder.finish());
-                    }
-                    _ => { panic!("type not supported {}", field.data_type())}
+            if index == 0 {
+                let mut rc = self.row_count.borrow_mut();
+                *rc = *rc + col.len() as u64;
+            }
+
+            let field = arc.field(index);
+            match field.data_type().clone() {
+                DataType::UInt64 => {
+                    let builder = UInt64Builder::new(self.array_size as usize);
+                    self.primitive::<UInt64Type>(col, scenario, field, builder);
+                },
+                DataType::UInt32 => {
+                    let builder = UInt32Builder::new(self.array_size as usize);
+                    self.primitive::<UInt32Type>(col, scenario, field, builder);
                 }
+                DataType::Float64 => {
+                    let builder = Float64Builder::new(self.array_size as usize);
+                    self.primitive::<Float64Type>(col, scenario, field, builder);
+                }
+                DataType::Utf8 => {
+                    let string_array = col.as_any().downcast_ref::<StringArray>().unwrap();
+                    let dic = self.dictionary_provider.dicos
+                        .entry(field.name().to_string())
+                        .or_insert(Dictionary::new());
+                    let mut builder = UInt32Builder::new(string_array.len());
+                    for element in string_array {
+                        builder.append_value(*dic.map(element.unwrap().to_string()));
+                    }
+                    self.get_chunk_array(scenario, field)
+                        .set_array(Box::new(builder.finish()));
+                }
+                _ => { panic!("type not supported {}", field.data_type()) }
             }
         }
     }
@@ -123,7 +118,7 @@ impl Store {
         }
         let array = builder.finish();
         let mut chunk_array = self.get_chunk_array(scenario, field);
-        chunk_array.add_array_primitive(array);
+        chunk_array.set_array(Box::new(array));
     }
 
     fn get_chunk_array(&mut self, scenario: &str, field: &Field) -> &mut ChunkArray {
