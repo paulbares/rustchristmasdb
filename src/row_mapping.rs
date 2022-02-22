@@ -22,7 +22,7 @@ impl std::fmt::Debug for dyn RowMapping {
 pub struct IdentityMapping {}
 
 impl RowMapping for IdentityMapping {
-    fn map(&self, row: u32, target_row: u32) {
+    fn map(&self, _row: u32, _target_row: u32) {
         // noop
     }
 

@@ -1,20 +1,20 @@
-use std::borrow::Borrow;
+
 use crate::chunk_array::ChunkArray;
 use crate::row_mapping::{IdentityMapping, RowMapping};
-use arrow::array::{Array, ArrayData, ArrayRef, as_boolean_array, Float64Builder, PrimitiveArray, PrimitiveBuilder, StringArray, UInt32Builder, UInt64Array, UInt64Builder};
+use arrow::array::{Array, ArrayRef, Float64Builder, PrimitiveArray, PrimitiveBuilder, StringArray, UInt32Builder, UInt64Builder};
 use arrow::datatypes::{ArrowPrimitiveType, DataType, Field, Float64Type, Schema, SchemaRef, UInt32Type, UInt64Type};
 use arrow::record_batch::RecordBatch;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::ops::Add;
+
 use std::sync::Arc;
-use arrow::buffer::Buffer;
-use arrow::ipc::{Utf8, Utf8Builder};
+
+
 use crate::dictionary_provider::{Dictionary, DictionaryProvider};
 
 pub const MAIN_SCENARIO_NAME: &str = "base";
-pub const CHUNK_DEFAULT_SIZE: u32 = 4;
+pub const CHUNK_DEFAULT_SIZE: usize = 4;
 
 #[derive(Debug)]
 pub struct Store {
@@ -72,7 +72,7 @@ impl Store {
 
             if index == 0 {
                 let mut rc = self.row_count.borrow_mut();
-                *rc = *rc + col.len() as u64;
+                *rc += col.len() as u64;
             }
 
             let field = arc.field(index);
@@ -117,7 +117,7 @@ impl Store {
             builder.append_value(element.unwrap()).unwrap();
         }
         let array = builder.finish();
-        let mut chunk_array = self.get_chunk_array(scenario, field);
+        let chunk_array = self.get_chunk_array(scenario, field);
         chunk_array.set_array(Box::new(array));
     }
 
@@ -133,7 +133,7 @@ impl Store {
         Arc::clone(&self.schema)
     }
 
-    pub fn show(&self) {
+    // pub fn show(&self) {
         // self.vector_by_field_by_scenario
-    }
+    // }
 }

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use arrow::array::{Float64Array, StringArray, UInt32Array, UInt64Array};
 use arrow::datatypes::{DataType, Field, Float64Type, Schema, UInt32Type};
 use arrow::record_batch::RecordBatch;
-use crate::aggregator::{Aggregator, AggregatorFactory, SumFloat64Aggregator};
+use crate::aggregator::{Aggregator, AggregatorAccessor, AggregatorFactory, SumFloat64Aggregator, SumUIntAggregator};
 
 use crate::datastore::{MAIN_SCENARIO_NAME, Store};
 use crate::point_dictionary::PointDictionary;
@@ -65,8 +65,10 @@ fn main() {
     let chunks = store.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap();
     let prod = chunks.get("product").unwrap();
     let price = chunks.get("price").unwrap();
+    let quantity = chunks.get("quantity").unwrap();
 
-    let mut aggregator: SumFloat64Aggregator<Float64Type> = factory.create(price, "", "");
+    let mut price_aggregator: Box<dyn Aggregator> = factory.create(price, "", "");
+    let mut quantity_aggregator: Box<dyn Aggregator> = factory.create(quantity, "", "");
 
     // Try to aggregate by hand.
     for row in 0..*store.row_count.borrow() {
@@ -75,9 +77,14 @@ fn main() {
         let mut point: [u32; 1] = [0; 1];
         point[0] = value;
         let destination_row = point_dictionary.map(point);
-        aggregator.aggregate(row as u32, destination_row);
+        price_aggregator.aggregate(row as u32, destination_row);
+        quantity_aggregator.aggregate(row as u32, destination_row);
     }
-    aggregator.finish();
+    price_aggregator.finish();
+    quantity_aggregator.finish();
 
-    println!("{:?}", aggregator.get_destination());
+    let col = price_aggregator.as_any().downcast_ref::<SumFloat64Aggregator>().unwrap();
+    println!("{:?}", col.get_destination());
+    let col = quantity_aggregator.as_any().downcast_ref::<SumUIntAggregator>().unwrap();
+    println!("{:?}", col.get_destination());
 }

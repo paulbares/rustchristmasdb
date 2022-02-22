@@ -1,4 +1,4 @@
-use std::any::Any;
+
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -39,7 +39,7 @@ where
         pos
     }
 
-    pub fn read(&self, position: &u32) -> Option<T> {
+    pub fn read(&self, _position: &u32) -> Option<T> {
         None
     }
 
