@@ -3,15 +3,18 @@ extern crate core;
 use std::sync::Arc;
 
 use arrow::array::{Float64Array, StringArray, UInt64Array};
-use arrow::datatypes::{DataType, Field, Schema};
+use arrow::datatypes::{DataType, Field, Schema, UInt32Type};
 use arrow::record_batch::RecordBatch;
 
 use crate::datastore::{MAIN_SCENARIO_NAME, Store};
+use crate::point_dictionary::PointDictionary;
 
 mod chunk_array;
 mod datastore;
 mod dictionary_provider;
 mod row_mapping;
+mod point_dictionary;
+mod aggregator;
 
 fn main() {
     let mut fields = Vec::new();
@@ -57,9 +60,18 @@ fn main() {
     // println!("arr: {:?}", arr);
     println!("Datastore: {:?}", store);
 
+    let mut point_dictionary: PointDictionary<[u32; 1]> = PointDictionary::new();
     // Try to aggregate by hand.
     for row in 0..*store.row_count.borrow() {
-        let option = store.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap();
+        let chunks = store.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap();
         // let's aggregate by product
+        let prod = chunks.get("product").unwrap();
+        let value: u32 = prod.read::<UInt32Type>(row as u32);
+        let mut point: [u32; 1] = [0; 1];
+        point[0] = value;
+        let destination_row = point_dictionary.map(point);
+
+        let prod = chunks.get("price").unwrap();
+
     }
 }

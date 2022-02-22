@@ -13,6 +13,7 @@ use arrow::ipc::{Utf8, Utf8Builder};
 use crate::dictionary_provider::{Dictionary, DictionaryProvider};
 
 pub const MAIN_SCENARIO_NAME: &str = "base";
+pub const CHUNK_DEFAULT_SIZE: u32 = 4;
 
 #[derive(Debug)]
 pub struct Store {
@@ -86,7 +87,11 @@ impl Store {
                 match field.data_type().clone() {
                     DataType::UInt64 => {
                         let builder = UInt64Builder::new(batch_size);
-                        self.primitive::<UInt64Type>(batch_size, col, scenario, field, builder);
+                        self.primitive::<UInt64Type>(col, scenario, field, builder);
+                    }
+                    DataType::Float64 => {
+                        let builder = Float64Builder::new(batch_size);
+                        self.primitive::<Float64Type>(col, scenario, field, builder);
                     }
                     DataType::Utf8 => {
                         let string_array = col.as_any().downcast_ref::<StringArray>().unwrap();
@@ -97,16 +102,8 @@ impl Store {
                         for element in string_array {
                             builder.append_value(*dic.map(element.unwrap().to_string()));
                         }
-                        self.vector_by_field_by_scenario
-                            .get_mut(scenario)
-                            .unwrap()
-                            .get_mut(field.name())
-                            .unwrap()
+                        self.get_chunk_array(scenario, field)
                             .add_array_primitive(builder.finish());
-                    }
-                    DataType::Float64 => {
-                        let builder = Float64Builder::new(batch_size);
-                        self.primitive::<Float64Type>(batch_size, col, scenario, field, builder);
                     }
                     _ => { panic!("type not supported {}", field.data_type())}
                 }
@@ -116,7 +113,6 @@ impl Store {
 
     fn primitive<T: ArrowPrimitiveType>(
         &mut self,
-        batch_size: usize,
         col: &ArrayRef,
         scenario: &str,
         field: &Field,
@@ -126,12 +122,16 @@ impl Store {
             builder.append_value(element.unwrap()).unwrap();
         }
         let array = builder.finish();
-        let mut chunk_array = self.vector_by_field_by_scenario
+        let mut chunk_array = self.get_chunk_array(scenario, field);
+        chunk_array.add_array_primitive(array);
+    }
+
+    fn get_chunk_array(&mut self, scenario: &str, field: &Field) -> &mut ChunkArray {
+        self.vector_by_field_by_scenario
             .get_mut(scenario)
             .unwrap()
             .get_mut(field.name())
-            .unwrap();
-        chunk_array.add_array_primitive(array);
+            .unwrap()
     }
 
     pub fn schema(&self) -> Arc<Schema> {

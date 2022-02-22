@@ -1,3 +1,5 @@
+use std::any::Any;
+use std::rc::Rc;
 use std::sync::Arc;
 use arrow::array::{Array, PrimitiveArray, PrimitiveBuilder, StringArray, UInt32Builder};
 use arrow::buffer::{Buffer, MutableBuffer};
@@ -7,6 +9,7 @@ use arrow::datatypes::{ArrowPrimitiveType, Field, Int32Type, UInt64Type};
 pub struct ChunkArray {
     field: Field,
     arrays: Vec<Arc<dyn Array>>,
+    vector_size: u32,
 }
 
 impl ChunkArray {
@@ -20,7 +23,25 @@ impl ChunkArray {
         ChunkArray {
             field,
             arrays: v,
+            vector_size: size,
         }
+    }
+
+    pub fn read<T: ArrowPrimitiveType>(&self, row: u32) -> T::Native {
+        let bucket: usize = (row >> self.vector_size.trailing_zeros()) as usize;
+        let offset: usize = (row & (self.vector_size - 1)) as usize;
+
+        let array = self.arrays[bucket].as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
+        let result = unsafe { array.value_unchecked(offset) };
+        result
+    }
+
+    pub fn set(&self, row: u32) {
+        let bucket: usize = (row >> self.vector_size.trailing_zeros()) as usize;
+        let offset: usize = (row & (self.vector_size - 1)) as usize;
+
+        let array = self.arrays[bucket].as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
+        // array.
     }
 
     pub fn add_array(&mut self, array: PrimitiveArray<UInt64Type>) {
