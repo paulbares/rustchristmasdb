@@ -25,7 +25,7 @@ pub struct Store {
     pub vector_by_field_by_scenario: HashMap<String, HashMap<String, ChunkArray>>,
     row_mapping_by_field_by_scenario:
     RefCell<HashMap<String, HashMap<String, Box<dyn RowMapping>>>>,
-    dictionary_provider: DictionaryProvider,
+    pub dictionary_provider: DictionaryProvider,
 }
 
 impl Store {

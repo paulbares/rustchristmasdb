@@ -1,5 +1,7 @@
 extern crate core;
 
+use std::any::Any;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use arrow::array::{Float64Array, StringArray, UInt32Array, UInt64Array};
@@ -8,7 +10,9 @@ use arrow::record_batch::RecordBatch;
 use crate::aggregator::{Aggregator, AggregatorAccessor, AggregatorFactory, SumFloat64Aggregator, SumUIntAggregator};
 
 use crate::datastore::{MAIN_SCENARIO_NAME, Store};
+use crate::dictionary_provider::Dictionary;
 use crate::point_dictionary::PointDictionary;
+use crate::point_list_aggregates_result::PointListAggregateResult;
 
 mod chunk_array;
 mod datastore;
@@ -16,6 +20,7 @@ mod dictionary_provider;
 mod row_mapping;
 mod point_dictionary;
 mod aggregator;
+mod point_list_aggregates_result;
 
 fn main() {
     let mut fields = Vec::new();
@@ -59,7 +64,7 @@ fn main() {
 
     println!("Datastore: {:?}", store);
 
-    let mut point_dictionary: PointDictionary<[u32; 1]> = PointDictionary::new();
+    let mut point_dictionary: PointDictionary = PointDictionary::new();
 
     let factory = AggregatorFactory::new();
     let chunks = store.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap();
@@ -76,15 +81,28 @@ fn main() {
         let value: u32 = prod.read::<UInt32Type>(row as u32);
         let mut point: [u32; 1] = [0; 1];
         point[0] = value;
-        let destination_row = point_dictionary.map(point);
+        let destination_row = point_dictionary.map(&point);
         price_aggregator.aggregate(row as u32, destination_row);
         quantity_aggregator.aggregate(row as u32, destination_row);
     }
     price_aggregator.finish();
     quantity_aggregator.finish();
 
-    let col = price_aggregator.as_any().downcast_ref::<SumFloat64Aggregator>().unwrap();
-    println!("{:?}", col.get_destination());
-    let col = quantity_aggregator.as_any().downcast_ref::<SumUIntAggregator>().unwrap();
-    println!("{:?}", col.get_destination());
+    let point_names = vec![String::from("product")];
+    let aggregate_names = [price, quantity].map(|a| a.field.name().clone()).to_vec();
+    let dictionaries = point_names.iter().map(|name| store.dictionary_provider.dicos.get(name).unwrap()).collect();
+    let result = PointListAggregateResult::new(
+        point_dictionary,
+        point_names,
+        dictionaries,
+        vec![price_aggregator.get_destination(), price_aggregator.get_destination()],
+        aggregate_names,
+    );
+
+    println!("{}", result);
+
+    // let col = price_aggregator.as_any().downcast_ref::<SumFloat64Aggregator>().unwrap();
+    // println!("{:?}", col.get_destination());
+    // let col = quantity_aggregator.as_any().downcast_ref::<SumUIntAggregator>().unwrap();
+    // println!("{:?}", col.get_destination());
 }

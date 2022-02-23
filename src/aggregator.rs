@@ -10,11 +10,11 @@ use crate::datastore::CHUNK_DEFAULT_SIZE;
 pub trait Aggregator {
     fn aggregate(&mut self, source_position: u32, destination_position: u32);
 
-    // fn get_destination<T: ArrowPrimitiveType>(&self) -> &PrimitiveArray<T>;
-
     fn finish(&mut self);
 
     fn as_any(&self) -> &dyn Any;
+
+    fn get_destination(&self) -> &dyn Array;
 }
 
 pub trait AggregatorAccessor<T: ArrowPrimitiveType> {
@@ -68,6 +68,10 @@ impl Aggregator for SumUIntAggregator {
     fn as_any(&self) -> &dyn Any {
         self
     }
+
+    fn get_destination(&self) -> &dyn Array {
+        self.get_destination()
+    }
 }
 
 pub struct SumFloat64Aggregator {
@@ -116,6 +120,10 @@ impl Aggregator for SumFloat64Aggregator {
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn get_destination(&self) -> &dyn Array {
+        self.get_destination()
     }
 }
 
