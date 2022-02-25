@@ -39,6 +39,14 @@ impl SumUIntAggregator {
         })
     }
 
+    fn new_with_buffer(source: ArrayRef, destination: Vec<u64>) -> Box<dyn Aggregator> {
+        Box::new(SumUIntAggregator {
+            source,
+            destination: None,
+            buffer: destination,
+        })
+    }
+
     pub fn get_destination(&self) -> &PrimitiveArray<UInt64Type> {
         self.destination.as_ref().unwrap()
     }
@@ -92,6 +100,14 @@ impl SumFloat64Aggregator {
         })
     }
 
+    fn new_with_buffer(source: ArrayRef, destination: Vec<f64>) -> Box<dyn Aggregator> {
+        Box::new(SumFloat64Aggregator {
+            source,
+            destination: None,
+            buffer: destination,
+        })
+    }
+
     pub fn get_destination(&self) -> &PrimitiveArray<Float64Type> {
         self.destination.as_ref().unwrap()
     }
@@ -133,8 +149,8 @@ impl AggregatorFactory {
         AggregatorFactory {}
     }
 
-    pub fn create(&self, source: &ChunkArray, _aggregation_type: &str, _destination_column_name: &str) -> Box<dyn Aggregator> {
-        let p = match source.field.data_type() {
+    pub fn create(&self, source: &ChunkArray, aggregation_type: &str, destination_column_name: &str) -> Box<dyn Aggregator> {
+        match source.field.data_type() {
             DataType::UInt32 => {
                 SumUIntAggregator::new(Arc::clone(source.array.as_ref().unwrap()))
             }
@@ -144,8 +160,23 @@ impl AggregatorFactory {
             _ => {
                 panic!("{} not supported", source.field.data_type())
             }
-        };
-        p
+        }
+    }
+
+    pub fn create_with_destination(&self, source: &ChunkArray,
+                                   // aggregator: impl Aggregator,
+                                   aggregation_type: &str) -> Box<dyn Aggregator> {
+        match source.field.data_type() {
+            DataType::UInt32 => {
+                SumUIntAggregator::new_with_buffer(Arc::clone(source.array.as_ref().unwrap()), Vec::new()) // FIXME
+            }
+            DataType::Float64 => {
+                SumFloat64Aggregator::new_with_buffer(Arc::clone(source.array.as_ref().unwrap()), Vec::new()) // FIXME
+            }
+            _ => {
+                panic!("{} not supported", source.field.data_type())
+            }
+        }
     }
 }
 

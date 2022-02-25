@@ -134,18 +134,22 @@ impl<'a> QueryEngine<'a> {
             if index == 0 {
                 query.measures.iter().for_each(|measure| {
                     let source = self.store.get_scenario_chunk_array(scenario, &measure.field.to_string());
-                    let aggregator = factory.create(source, measure.aggregation_function, "");
+                    let aggregator = factory.create(
+                        source,
+                        measure.aggregation_function,
+                        "");
                     aggregators.push(aggregator);
                     // aggregates.push(aggregator.get_destination()); FIXME
                 });
             } else {
                 // Here, we take the destination column created earlier.
                 for i in 0..query.measures.len() {
-                    let agg = &query.measures[i];
-                    // let aggregator = AggregatorFactory.create(  FIXME
-                    //     this.store.getColumn(scenario, agg.field),
-                    //     aggregates.get(i),
-                    //     agg.aggregationFunction);
+                    let measure = &query.measures[i];
+                    let source = self.store.get_scenario_chunk_array(scenario, &measure.field.to_string());
+                    let aggregator = factory.create_with_destination(
+                        source,
+                        // aggregates.get(i),
+                        measure.aggregation_function);
                     // aggregators.push(aggregator);
                 }
             }
