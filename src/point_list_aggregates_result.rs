@@ -38,7 +38,8 @@ impl fmt::Display for PointListAggregateResult<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list()
             .entries(self.point_names.iter())
-            .entries(self.aggregate_names.iter()).finish();
+            .entries(self.aggregate_names.iter())
+            .finish();
         write!(f, "({:?}, {:?}, {})", self.point_dictionary, self.aggregates, self.size())
     }
 }

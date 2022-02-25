@@ -4,12 +4,14 @@ use std::hash::Hash;
 #[derive(Debug)]
 pub struct PointDictionary {
     dic: HashMap<Vec<u32>, u32>,
+    point_length: u32,
 }
 
 impl PointDictionary {
-    pub fn new() -> PointDictionary {
+    pub fn new(point_length: u32) -> PointDictionary {
         PointDictionary {
             dic: HashMap::new(),
+            point_length
         }
     }
 

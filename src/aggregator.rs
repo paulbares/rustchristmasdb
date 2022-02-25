@@ -29,7 +29,6 @@ pub struct SumUIntAggregator {
 
 impl SumUIntAggregator {
     fn new(source: ArrayRef) -> Box<dyn Aggregator> {
-        // fn new(source: ArrayRef) -> impl Aggregator<T> {
         let capacity = CHUNK_DEFAULT_SIZE; // FIXME make it grow when to big
         let mut buffer = Vec::with_capacity(capacity);
         buffer.resize(capacity, 0);

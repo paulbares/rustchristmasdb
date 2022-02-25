@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 arrow = "9.0.2"
+roaring = "0.8.1"

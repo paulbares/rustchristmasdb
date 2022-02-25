@@ -9,10 +9,12 @@ use arrow::datatypes::{DataType, Field, Float64Type, Schema, UInt32Type};
 use arrow::record_batch::RecordBatch;
 use crate::aggregator::{Aggregator, AggregatorAccessor, AggregatorFactory, SumFloat64Aggregator, SumUIntAggregator};
 
-use crate::datastore::{MAIN_SCENARIO_NAME, Store};
+use crate::datastore::{MAIN_SCENARIO_NAME, SCENARIO_FIELD_NAME, Store};
 use crate::dictionary_provider::Dictionary;
 use crate::point_dictionary::PointDictionary;
 use crate::point_list_aggregates_result::PointListAggregateResult;
+use crate::query::Query;
+use crate::query_engine::QueryEngine;
 
 mod chunk_array;
 mod datastore;
@@ -21,6 +23,10 @@ mod row_mapping;
 mod point_dictionary;
 mod aggregator;
 mod point_list_aggregates_result;
+mod query;
+mod query_engine;
+mod bitmap_row_iterable_provider;
+mod row_iterable_provider;
 
 fn main() {
     let mut fields = Vec::new();
@@ -38,10 +44,13 @@ fn main() {
     let quantity_array = UInt32Array::from(vec![5, 3, 4, 1, 4]);
     let product_array =
         StringArray::from(vec!["syrup", "tofu", "mozzarella", "syrup", "tofu"]);
-    let price_array = Float64Array::from(vec![2f64, 8f64, 4f64, 2f64, 10f64]);
+    let category_array =
+        StringArray::from(vec!["condiment", "milk", "milk", "condiment", "milk"]);
+    let price_array = Float64Array::from(vec![2f64, 8f64, 4f64, 2f64, 8f64]);
     let schema = Schema::new(vec![
         Field::new("id", DataType::UInt64, false),
         Field::new("product", DataType::Utf8, false),
+        Field::new("category", DataType::Utf8, false),
         Field::new("price", DataType::Float64, false),
         Field::new("quantity", DataType::UInt32, false),
     ]);
@@ -54,6 +63,7 @@ fn main() {
         vec![
             Arc::new(id_array),
             Arc::new(product_array),
+            Arc::new(category_array),
             Arc::new(price_array),
             Arc::new(quantity_array),
         ],
@@ -64,11 +74,12 @@ fn main() {
 
     println!("Datastore: {:?}", store);
 
-    let mut point_dictionary: PointDictionary = PointDictionary::new();
+    let mut point_dictionary: PointDictionary = PointDictionary::new(1);
 
     let factory = AggregatorFactory::new();
     let chunks = store.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap();
     let prod = chunks.get("product").unwrap();
+    let category = chunks.get("category").unwrap();
     let price = chunks.get("price").unwrap();
     let quantity = chunks.get("quantity").unwrap();
 
@@ -101,8 +112,20 @@ fn main() {
 
     println!("{}", result);
 
+    let mut query = Query::new();
+    let query = query
+        .add_wildcard_coordinate(SCENARIO_FIELD_NAME)
+        .add_coordinates("category", vec!["condiment", "milk"])
+        .add_aggregated_measure("price", "sum")
+        .add_aggregated_measure("quantity", "sum");
+
+    QueryEngine::new(&store).execute(query);
+    // PointListAggregateResult result = queryEngine.execute(query);
+
     // let col = price_aggregator.as_any().downcast_ref::<SumFloat64Aggregator>().unwrap();
     // println!("{:?}", col.get_destination());
     // let col = quantity_aggregator.as_any().downcast_ref::<SumUIntAggregator>().unwrap();
     // println!("{:?}", col.get_destination());
+
+
 }

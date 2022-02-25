@@ -1,4 +1,3 @@
-
 use crate::chunk_array::ChunkArray;
 use crate::row_mapping::{IdentityMapping, RowMapping};
 use arrow::array::{Array, ArrayRef, Float64Builder, PrimitiveArray, PrimitiveBuilder, StringArray, UInt32Builder, UInt64Builder};
@@ -14,6 +13,7 @@ use std::sync::Arc;
 use crate::dictionary_provider::{Dictionary, DictionaryProvider};
 
 pub const MAIN_SCENARIO_NAME: &str = "base";
+pub const SCENARIO_FIELD_NAME: &str = "scenario";
 pub const CHUNK_DEFAULT_SIZE: usize = 4;
 
 #[derive(Debug)]
@@ -23,8 +23,7 @@ pub struct Store {
     key_indices: Vec<u32>,
     array_size: u32,
     pub vector_by_field_by_scenario: HashMap<String, HashMap<String, ChunkArray>>,
-    row_mapping_by_field_by_scenario:
-    RefCell<HashMap<String, HashMap<String, Box<dyn RowMapping>>>>,
+    pub row_mapping_by_field_by_scenario: HashMap<String, HashMap<String, Box<dyn RowMapping>>>,
     pub dictionary_provider: DictionaryProvider,
 }
 
@@ -55,9 +54,29 @@ impl Store {
             key_indices,
             array_size,
             vector_by_field_by_scenario,
-            row_mapping_by_field_by_scenario: RefCell::new(row_mapping_by_field_by_scenario),
+            row_mapping_by_field_by_scenario,
             dictionary_provider: DictionaryProvider::new(),
         }
+    }
+
+    pub fn get_scenario_chunk_array(&self, scenario: &str, field: &str) -> &ChunkArray {
+        let base_array = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field);
+        let scenario_array = self.vector_by_field_by_scenario.get(scenario).unwrap().get(field);
+        match scenario_array {
+            None => {
+                return base_array.unwrap();
+            }
+            Some(array) => {
+                let mapping = self.row_mapping_by_field_by_scenario.get(scenario).unwrap().get(field).unwrap();
+                return scenario_array.unwrap(); // FIXME use mapping
+            }
+        }
+    }
+
+    pub fn get_dictionary(&self, field: &str) -> &Dictionary<String> {
+        self.dictionary_provider.dicos
+            .get(field)
+            .expect(format!("cannot find dictionary for field '{}'", field).as_str())
     }
 
     fn create_chunk_array(field: Field, array_size: u32) -> ChunkArray {
@@ -65,9 +84,13 @@ impl Store {
     }
 
     pub fn load(&mut self, scenario: &str, batch: &RecordBatch) {
+        let dic = self.dictionary_provider.dicos
+            .entry(SCENARIO_FIELD_NAME.to_string())
+            .or_insert(Dictionary::new());
+        *dic.map(scenario.to_string());
+
         let arc = batch.schema();
         for index in 0..batch.columns().len() {
-
             let col = batch.column(index);
 
             if index == 0 {
@@ -80,7 +103,7 @@ impl Store {
                 DataType::UInt64 => {
                     let builder = UInt64Builder::new(self.array_size as usize);
                     self.primitive::<UInt64Type>(col, scenario, field, builder);
-                },
+                }
                 DataType::UInt32 => {
                     let builder = UInt32Builder::new(self.array_size as usize);
                     self.primitive::<UInt32Type>(col, scenario, field, builder);
@@ -134,6 +157,6 @@ impl Store {
     }
 
     // pub fn show(&self) {
-        // self.vector_by_field_by_scenario
+    // self.vector_by_field_by_scenario
     // }
 }
