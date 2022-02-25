@@ -7,44 +7,43 @@ use roaring::RoaringBitmap;
 use crate::{MAIN_SCENARIO_NAME, SCENARIO_FIELD_NAME, Store};
 use crate::chunk_array::ChunkArray;
 
-// pub trait RowIterable<'a> {
-//     fn iterator(&'a self) -> Box<dyn Iterator<Item=u32> + 'a>;
-// }
-
-pub trait RowIterableProvider<'a, 'b> {
-    fn get(&'a self, scenario: &str) -> Box<dyn RowIterable + 'b>;
+pub trait RowIterableProvider {
+    fn get(&self, scenario: &str) -> RowIterable;
 }
 
 pub struct RangeRowIterable {
     pub range: Range<u32>,
 }
 
-impl<'a, 'b> RowIterableProvider<'a, 'a> for RangeRowIterable {
-    fn get(&self, _: &str) -> Box<dyn RowIterable> {
-        Box::new(RangeRowIterable { range: self.range.clone() })
+impl RowIterableProvider for RangeRowIterable {
+    fn get(&self, _: &str) -> RowIterable {
+        RowIterable::Range { 0: self.range.clone() }
     }
 }
 
-// impl<'a> RowIterable<'a> for RangeRowIterable {
-//     fn iterator(&'a self) -> Box<dyn Iterator<Item=u32> + 'a> {
-//         Box::new((self.range.start..self.range.end).into_iter())
-//     }
-// }
+pub enum RowIterable {
+    RoaringBitmap(RoaringBitmap),
+    Range(Range<u32>),
+}
 
-enum RowIterable {
-    RoaringBitmapIntIterableAdapter(RoaringBitmap),
-    RangeIn
+impl RowIterable {
+    pub fn for_each<F: FnMut(u32) -> ()>(&self, mut f: F) {
+        match self {
+            RowIterable::RoaringBitmap(bitmap) => {
+                bitmap.iter().for_each(f);
+            }
+            RowIterable::Range(range) => {
+                for r in range.start..range.end {
+                    f(r);
+                }
+            }
+        }
+    }
 }
 
 struct RoaringBitmapIntIterableAdapter {
     bitmap: RoaringBitmap,
 }
-
-// impl<'a> RowIterable<'a> for RoaringBitmapIntIterableAdapter {
-//     fn iterator(&'a self) -> Box<dyn Iterator<Item=u32> + 'a> {
-//         Box::new(self.bitmap.iter().into_iter())
-//     }
-// }
 
 pub struct BitmapRowIterableProvider<'a> {
     accepted_values_by_field: HashMap<String, HashSet<u32>>,
@@ -53,8 +52,8 @@ pub struct BitmapRowIterableProvider<'a> {
     fields_with_sim: Vec<String>,
 }
 
-impl<'a, 'b> RowIterableProvider<'a, 'b> for BitmapRowIterableProvider<'a> {
-    fn get(&self, scenario: &str) -> Box<dyn RowIterable + 'b> {
+impl<'a> RowIterableProvider for BitmapRowIterableProvider<'a> {
+    fn get(&self, scenario: &str) -> RowIterable {
         self.create(scenario)
     }
 }
@@ -75,14 +74,15 @@ impl<'a> BitmapRowIterableProvider<'a> {
         }
     }
 
-    pub fn create(&self, scenario: &str) -> Box<dyn RowIterable> {
+    pub fn create(&self, scenario: &str) -> RowIterable {
         if !self.fields_with_sim.is_empty() {
             // Clone it because will be modified in-place
             let mut bitmap = self.initial_iterator.clone();
             BitmapRowIterableProvider::apply_conditions(&self.accepted_values_by_field, self.store, &mut bitmap, &self.fields_with_sim, scenario);
-            Box::new(RoaringBitmapIntIterableAdapter { bitmap })
+            RowIterable::RoaringBitmap(bitmap)
         } else {
-            Box::new(RoaringBitmapIntIterableAdapter { bitmap: self.initial_iterator.clone() }) //FIXME can we avoid the cloning here? issue with lifetime if we remove it
+            RowIterable::RoaringBitmap(self.initial_iterator.clone())
+            // Box::new(RoaringBitmapIntIterableAdapter { bitmap: self.initial_iterator.clone() }) //FIXME can we avoid the cloning here? issue with lifetime if we remove it
         }
     }
 

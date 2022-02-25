@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
 use arrow::array::Array;
@@ -19,14 +20,12 @@ impl<'a> QueryEngine<'a> {
     pub fn execute(&self, query: &'a Query) -> () {
         let accepted_values_by_field = self.compute_accepted_values(query);
         let queried_scenarios = self.compute_queried_scenarios(query);
-        let aggregators_by_scenario = self.compute_aggregators(query, queried_scenarios.clone());
+        let mut aggregators_by_scenario = self.compute_aggregators(query, queried_scenarios.clone());
 
         let point_size = query.coordinates.len();
-        let point_dictionary = PointDictionary::new(point_size as u32);
+        let mut point_dictionary = PointDictionary::new(point_size as u32);
         let point_names: Vec<String> = query.coordinates.keys().map(|k| k.to_string()).collect();
-
-        let scenario_index = point_names.iter().position(|r| *r == SCENARIO_FIELD_NAME).unwrap();
-
+        let scenario_index = point_names.iter().position(|r| *r == SCENARIO_FIELD_NAME).unwrap_or(usize::MAX);
         let provider = RowIterableProviderFactory::create(self.store, accepted_values_by_field);
         for i in queried_scenarios.iter() {
             let dictionary = self.store.get_dictionary(SCENARIO_FIELD_NAME);
@@ -39,8 +38,9 @@ impl<'a> QueryEngine<'a> {
                     columns[point_index] = Some(self.store.get_scenario_chunk_array(scenario.as_str(), point_names[point_index].as_str()));
                 }
             }
-            let aggregators = aggregators_by_scenario.get(scenario).unwrap();
-            let aggregation_procedure = |row| {
+            let aggregators = aggregators_by_scenario.get_mut(scenario).unwrap();
+
+            provider.get(scenario.as_str()).for_each(|row| {
                 let mut point: Vec<u32> = Vec::with_capacity(point_size);
                 point.resize(point_size, 0);
                 for point_index in 0..point_size {
@@ -50,12 +50,32 @@ impl<'a> QueryEngine<'a> {
                         point[point_index] = *i;
                     }
                 }
-            };
-            let row_iterable = provider.get(scenario.as_str());
-            row_iterable.iterator().for_each(aggregation_procedure);
+
+                let destination_row = point_dictionary.map(point.as_slice());
+                // And then aggregate
+                let mut check = false;
+                for aggregator in aggregators.into_iter() {
+                    if !check {
+                        // aggregator.get_destination().ensure_capacity(); // TODO to impl.
+                        check = true;
+                    }
+                    aggregator.as_mut().aggregate(row, destination_row);
+                }
+            });
         }
 
+        aggregators_by_scenario.iter_mut()
+            .flat_map(|(k, v)| v.into_iter())
+            .for_each(|a| a.as_mut().finish());
+
         println!("{:?}", scenario_index);
+
+        let dictionaries = point_names.iter().map(|name| self.store.dictionary_provider.dicos.get(name).unwrap()).collect();
+        PointListAggregateResult::new(point_dictionary,
+                                      point_names,
+                                      dictionaries,
+                                      Vec::new(),
+                                      Vec::new());
     }
 
     fn compute_accepted_values(&self, query: &Query) -> HashMap<String, HashSet<u32>> {
