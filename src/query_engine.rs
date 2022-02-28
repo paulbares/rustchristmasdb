@@ -17,7 +17,7 @@ impl<'a> QueryEngine<'a> {
         QueryEngine { store }
     }
 
-    pub fn execute(&self, query: &'a Query) -> () {
+    pub fn execute(&self, query: &'a Query) -> PointListAggregateResult {
         let accepted_values_by_field = self.compute_accepted_values(query);
         let queried_scenarios = self.compute_queried_scenarios(query);
         let mut aggregators_by_scenario = self.compute_aggregators(query, queried_scenarios.clone());
@@ -68,14 +68,12 @@ impl<'a> QueryEngine<'a> {
             .flat_map(|(k, v)| v.into_iter())
             .for_each(|a| a.as_mut().finish());
 
-        println!("{:?}", scenario_index);
-
         let dictionaries = point_names.iter().map(|name| self.store.dictionary_provider.dicos.get(name).unwrap()).collect();
         PointListAggregateResult::new(point_dictionary,
                                       point_names,
                                       dictionaries,
                                       Vec::new(),
-                                      Vec::new());
+                                      Vec::new())
     }
 
     fn compute_accepted_values(&self, query: &Query) -> HashMap<String, HashSet<u32>> {
@@ -148,7 +146,7 @@ impl<'a> QueryEngine<'a> {
                     let source = self.store.get_scenario_chunk_array(scenario, &measure.field.to_string());
                     let aggregator = factory.create_with_destination(
                         source,
-                        // aggregates.get(i),
+                        aggregators[i].as_mut(),
                         measure.aggregation_function);
                     // aggregators.push(aggregator);
                 }

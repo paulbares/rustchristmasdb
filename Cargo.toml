@@ -6,5 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arrow = "9.0.2"
+arrow = { version = "9.0.2", features = ["prettyprint"] }
 roaring = "0.8.1"
+comfy-table = "5.0.1"

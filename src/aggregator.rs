@@ -1,4 +1,6 @@
 use std::any::Any;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::Arc;
 use arrow::array::{Array, ArrayRef, Float64Builder, PrimitiveArray, UInt64Builder};
 
@@ -24,7 +26,7 @@ pub trait AggregatorAccessor<T: ArrowPrimitiveType> {
 pub struct SumUIntAggregator {
     source: ArrayRef,
     destination: Option<PrimitiveArray<UInt64Type>>,
-    buffer: Vec<u64>,
+    buffer: Rc<RefCell<Vec<u64>>>,
 }
 
 impl SumUIntAggregator {
@@ -35,11 +37,11 @@ impl SumUIntAggregator {
         Box::new(SumUIntAggregator {
             source,
             destination: None,
-            buffer,
+            buffer: Rc::new(RefCell::new(buffer)),
         })
     }
 
-    fn new_with_buffer(source: ArrayRef, destination: Vec<u64>) -> Box<dyn Aggregator> {
+    fn new_with_buffer(source: ArrayRef, destination: Rc<RefCell<Vec<u64>>>) -> Box<dyn Aggregator> {
         Box::new(SumUIntAggregator {
             source,
             destination: None,
@@ -55,18 +57,17 @@ impl SumUIntAggregator {
 impl Aggregator for SumUIntAggregator {
     fn aggregate(&mut self, source_position: u32, destination_position: u32) {
         let a: u64 = read::<UInt32Type>(&self.source, source_position) as u64;
-        let x: Option<&u64> = self.buffer.get(destination_position as usize);
-        let b: u64 = match x {
+        let b: u64 = match self.buffer.borrow().get(destination_position as usize) {
             None => { 0u64 }
             Some(v) => { *v }
         };
-        self.buffer[destination_position as usize] = a + b;
+        self.buffer.borrow_mut()[destination_position as usize] = a + b;
     }
 
     fn finish(&mut self) {
         let mut builder = UInt64Builder::new(CHUNK_DEFAULT_SIZE);
         builder
-            .append_slice(self.buffer.as_slice())
+            .append_slice(self.buffer.borrow().as_slice())
             .unwrap();
         let array: PrimitiveArray<UInt64Type> = builder.finish();
         self.destination = Some(array);
@@ -85,6 +86,11 @@ pub struct SumFloat64Aggregator {
     source: ArrayRef,
     destination: Option<PrimitiveArray<Float64Type>>,
     buffer: Vec<f64>,
+}
+
+pub struct SumFloat64Aggregator2 {
+    source: ArrayRef,
+    buffer: Rc<Vec<f64>>,
 }
 
 impl SumFloat64Aggregator {
@@ -163,14 +169,18 @@ impl AggregatorFactory {
         }
     }
 
-    pub fn create_with_destination(&self, source: &ChunkArray,
-                                   // aggregator: impl Aggregator,
+    pub fn create_with_destination(&self,
+                                   source: &ChunkArray,
+                                   aggregator: &mut dyn Aggregator,
                                    aggregation_type: &str) -> Box<dyn Aggregator> {
         match source.field.data_type() {
             DataType::UInt32 => {
-                SumUIntAggregator::new_with_buffer(Arc::clone(source.array.as_ref().unwrap()), Vec::new()) // FIXME
+                let dest: &SumUIntAggregator = aggregator.as_any().downcast_ref::<SumUIntAggregator>().unwrap();
+                // let vec = dest.buffer;
+                SumUIntAggregator::new_with_buffer(Arc::clone(source.array.as_ref().unwrap()), Rc::clone(&dest.buffer)) // FIXME
             }
             DataType::Float64 => {
+                let dest: &SumFloat64Aggregator = aggregator.as_any().downcast_ref::<SumFloat64Aggregator>().unwrap();
                 SumFloat64Aggregator::new_with_buffer(Arc::clone(source.array.as_ref().unwrap()), Vec::new()) // FIXME
             }
             _ => {
