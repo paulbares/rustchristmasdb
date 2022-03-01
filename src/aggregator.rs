@@ -155,7 +155,7 @@ impl AggregatorFactory {
         AggregatorFactory {}
     }
 
-    pub fn create(&self, source: &ChunkArray, aggregation_type: &str, destination_column_name: &str) -> Box<dyn Aggregator> {
+    pub fn create(&self, source: &ChunkArray, _aggregation_type: &str, _destination_column_name: &str) -> Box<dyn Aggregator> {
         match source.field.data_type() {
             DataType::UInt32 => {
                 SumUIntAggregator::new(Arc::clone(source.array.as_ref().unwrap()))
@@ -172,7 +172,7 @@ impl AggregatorFactory {
     pub fn create_with_destination(&self,
                                    source: &ChunkArray,
                                    aggregator: &mut dyn Aggregator,
-                                   aggregation_type: &str) -> Box<dyn Aggregator> {
+                                   _aggregation_type: &str) -> Box<dyn Aggregator> {
         match source.field.data_type() {
             DataType::UInt32 => {
                 let dest: &SumUIntAggregator = aggregator.as_any().downcast_ref::<SumUIntAggregator>().unwrap();
@@ -180,7 +180,7 @@ impl AggregatorFactory {
                 SumUIntAggregator::new_with_buffer(Arc::clone(source.array.as_ref().unwrap()), Rc::clone(&dest.buffer)) // FIXME
             }
             DataType::Float64 => {
-                let dest: &SumFloat64Aggregator = aggregator.as_any().downcast_ref::<SumFloat64Aggregator>().unwrap();
+                let _dest: &SumFloat64Aggregator = aggregator.as_any().downcast_ref::<SumFloat64Aggregator>().unwrap();
                 SumFloat64Aggregator::new_with_buffer(Arc::clone(source.array.as_ref().unwrap()), Vec::new()) // FIXME
             }
             _ => {

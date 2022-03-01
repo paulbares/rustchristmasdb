@@ -1,11 +1,11 @@
-use std::borrow::BorrowMut;
+
 use std::collections::{HashMap, HashSet};
-use std::ops::Index;
+
 use arrow::array::Array;
 use arrow::datatypes::UInt32Type;
 use datastore::MAIN_SCENARIO_NAME;
 use crate::{Aggregator, AggregatorFactory, datastore, PointDictionary, PointListAggregateResult, Query, SCENARIO_FIELD_NAME, Store};
-use crate::bitmap_row_iterable_provider::BitmapRowIterableProvider;
+
 use crate::row_iterable_provider::RowIterableProviderFactory;
 
 pub struct QueryEngine<'a> {
@@ -144,7 +144,7 @@ impl<'a> QueryEngine<'a> {
                 for i in 0..query.measures.len() {
                     let measure = &query.measures[i];
                     let source = self.store.get_scenario_chunk_array(scenario, &measure.field.to_string());
-                    let aggregator = factory.create_with_destination(
+                    let _aggregator = factory.create_with_destination(
                         source,
                         aggregators[i].as_mut(),
                         measure.aggregation_function);

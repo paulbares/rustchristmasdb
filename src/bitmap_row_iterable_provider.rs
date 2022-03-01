@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
-use std::ops::{BitAnd, BitAndAssign, Range, RangeInclusive};
-use arrow::bitmap::Bitmap;
+use std::ops::{BitAndAssign, Range};
+
 use arrow::datatypes::UInt32Type;
-use roaring::bitmap::IntoIter;
+
 use roaring::RoaringBitmap;
 use crate::{MAIN_SCENARIO_NAME, SCENARIO_FIELD_NAME, Store};
 use crate::chunk_array::ChunkArray;
@@ -89,7 +89,7 @@ impl<'a> BitmapRowIterableProvider<'a> {
     fn create_initial_iterator(accepted_values_by_field: &HashMap<String, HashSet<u32>>, store: &'a Store, fields_with_sim: &mut Vec<String>) -> RoaringBitmap {
         // Keep only the fields that are not simulated
         let mut fields_without_sim = Vec::new();
-        for (field, values) in accepted_values_by_field.iter() {
+        for (field, _values) in accepted_values_by_field.iter() {
             let c = store.vector_by_field_by_scenario
                 .iter()
                 .flat_map(|s| s.1.iter())

@@ -1,16 +1,16 @@
 extern crate core;
 
-use std::any::Any;
-use std::rc::Rc;
+
+
 use std::sync::Arc;
 
 use arrow::array::{Float64Array, StringArray, UInt32Array, UInt64Array};
-use arrow::datatypes::{DataType, Field, Float64Type, Schema, UInt32Type};
+use arrow::datatypes::{DataType, Field, Schema};
 use arrow::{record_batch::RecordBatch, util::pretty::print_batches};
-use crate::aggregator::{Aggregator, AggregatorAccessor, AggregatorFactory, SumFloat64Aggregator, SumUIntAggregator};
+use crate::aggregator::{Aggregator, AggregatorFactory};
 
 use crate::datastore::{CHUNK_DEFAULT_SIZE, MAIN_SCENARIO_NAME, SCENARIO_FIELD_NAME, Store};
-use crate::dictionary_provider::Dictionary;
+
 use crate::point_dictionary::PointDictionary;
 use crate::point_list_aggregates_result::PointListAggregateResult;
 use crate::query::Query;

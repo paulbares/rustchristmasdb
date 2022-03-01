@@ -6,7 +6,7 @@ use arrow::record_batch::RecordBatch;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::process::id;
+
 
 use std::sync::Arc;
 
@@ -69,8 +69,8 @@ impl Store {
             None => {
                 return base_array.unwrap();
             }
-            Some(array) => {
-                let mapping = self.row_mapping_by_field_by_scenario.get(scenario).unwrap().get(field).unwrap();
+            Some(_array) => {
+                let _mapping = self.row_mapping_by_field_by_scenario.get(scenario).unwrap().get(field).unwrap();
                 return scenario_array.unwrap(); // FIXME use mapping
             }
         }
@@ -252,7 +252,7 @@ impl Store {
         let key_field = fields.get(self.key_indices[0] as usize).unwrap();
         let key_col = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(key_field.name()).unwrap().array.as_ref().unwrap();
 
-        let mut row_mapping = IntIntMapRowMapping::new();
+        let row_mapping = IntIntMapRowMapping::new();
         let arr = col.as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
         let key_col = key_col.as_any().downcast_ref::<UInt64Array>().unwrap();
         let base_vector = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field.name()).unwrap();
