@@ -118,7 +118,7 @@ impl Store {
                         let key_field = fields.get(self.key_indices[0] as usize).unwrap();
                         let key_col = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(key_field.name()).unwrap().array.as_ref().unwrap();
 
-                        let mut row_mapping = IntIntMapRowMapping::new();
+                        let row_mapping = IntIntMapRowMapping::new();
                         let arr = col.as_any().downcast_ref::<StringArray>().unwrap();
                         let key_col = key_col.as_any().downcast_ref::<UInt64Array>().unwrap();
                         let base_vector = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field.name()).unwrap();

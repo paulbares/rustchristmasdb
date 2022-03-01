@@ -65,7 +65,7 @@ impl<'a> QueryEngine<'a> {
         }
 
         aggregators_by_scenario.iter_mut()
-            .flat_map(|(k, v)| v.into_iter())
+            .flat_map(|(_k, v)| v.into_iter())
             .for_each(|a| a.as_mut().finish());
 
         let dictionaries = point_names.iter().map(|name| self.store.dictionary_provider.dicos.get(name).unwrap()).collect();
