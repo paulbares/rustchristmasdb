@@ -1,5 +1,5 @@
-
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use arrow::array::Array;
 use arrow::datatypes::UInt32Type;
@@ -59,7 +59,7 @@ impl<'a> QueryEngine<'a> {
                         // aggregator.get_destination().ensure_capacity(); // TODO to impl.
                         check = true;
                     }
-                    aggregator.as_mut().aggregate(row, destination_row);
+                    aggregator.as_mut().aggregate(row, *destination_row);
                 }
             });
         }
@@ -72,8 +72,7 @@ impl<'a> QueryEngine<'a> {
         PointListAggregateResult::new(point_dictionary,
                                       point_names,
                                       dictionaries,
-                                      Vec::new(),
-                                      Vec::new())
+                                      aggregators_by_scenario)
     }
 
     fn compute_accepted_values(&self, query: &Query) -> HashMap<String, HashSet<u32>> {
@@ -123,7 +122,7 @@ impl<'a> QueryEngine<'a> {
     }
 
     fn compute_aggregators(&self, query: &Query, queried_scenarios: Vec<u32>) -> HashMap<String, Vec<Box<dyn Aggregator>>> {
-        let mut aggregators_by_scenario = HashMap::new();
+        let mut aggregators_by_scenario: HashMap<String, Vec<Box<dyn Aggregator>>> = HashMap::new();
         let factory = AggregatorFactory::new();
         let dictionary = self.store.get_dictionary(SCENARIO_FIELD_NAME);
         for (index, s) in queried_scenarios.iter().enumerate() {
@@ -135,20 +134,20 @@ impl<'a> QueryEngine<'a> {
                     let aggregator = factory.create(
                         source,
                         measure.aggregation_function,
-                        "");
+                        measure.alias().as_str());
                     aggregators.push(aggregator);
-                    // aggregates.push(aggregator.get_destination()); FIXME
                 });
             } else {
                 // Here, we take the destination column created earlier.
+                let x = aggregators_by_scenario.values().next().unwrap();
                 for i in 0..query.measures.len() {
                     let measure = &query.measures[i];
                     let source = self.store.get_scenario_chunk_array(scenario, &measure.field.to_string());
-                    let _aggregator = factory.create_with_destination(
+                    let aggregator = factory.create_with_destination(
                         source,
-                        aggregators[i].as_mut(),
+                        &*x[i],
                         measure.aggregation_function);
-                    // aggregators.push(aggregator);
+                    aggregators.push(aggregator);
                 }
             }
             aggregators_by_scenario.insert(scenario.to_string(), aggregators);

@@ -41,10 +41,6 @@ impl RowIterable {
     }
 }
 
-struct RoaringBitmapIntIterableAdapter {
-    bitmap: RoaringBitmap,
-}
-
 pub struct BitmapRowIterableProvider<'a> {
     accepted_values_by_field: HashMap<String, HashSet<u32>>,
     store: &'a Store,
@@ -101,6 +97,10 @@ impl<'a> BitmapRowIterableProvider<'a> {
                 fields_without_sim.push(field.clone());
             }
         }
+
+        println!("{:?}", accepted_values_by_field);
+        println!("{:?}", fields_with_sim);
+        println!("{:?}", fields_without_sim);
 
         // Lexical sort to have a deterministic order
         fields_without_sim.sort();

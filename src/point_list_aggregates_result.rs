@@ -1,16 +1,16 @@
-
+use std::collections::HashMap;
 use std::fmt;
 
 use arrow::array::Array;
 use comfy_table::{Table, Cell};
 
 use crate::dictionary_provider::Dictionary;
-use crate::PointDictionary;
+use crate::{Aggregator, PointDictionary};
 
 pub struct PointListAggregateResult<'a> {
     point_dictionary: PointDictionary,
     point_names: Vec<String>,
-    aggregates: Vec<&'a dyn Array>,
+    aggregators: Vec<Box<dyn Aggregator>>,
     aggregate_names: Vec<String>,
     dictionaries: Vec<&'a Dictionary<String>>,
 }
@@ -19,13 +19,24 @@ impl<'a> PointListAggregateResult<'a> {
     pub fn new(point_dictionary: PointDictionary,
                point_names: Vec<String>,
                dictionaries: Vec<&'a Dictionary<String>>,
-               aggregates: Vec<&'a dyn Array>,
-               aggregate_names: Vec<String>) -> PointListAggregateResult<'a> {
+               aggregators_by_scenario: HashMap<String, Vec<Box<dyn Aggregator>>>) -> PointListAggregateResult<'a> {
+        let mut aggregators_vec = Vec::new();
+        for (_, aggregators) in aggregators_by_scenario.into_iter() {
+            for aggregator in aggregators.into_iter() {
+                aggregators_vec.push(aggregator);
+            }
+            break;
+        }
+
+        let aggregate_names = aggregators_vec.iter()
+            .map(|a| a.get_field().name().to_string())
+            .collect();
+
         PointListAggregateResult {
             point_dictionary,
             point_names,
             dictionaries,
-            aggregates,
+            aggregators: aggregators_vec,
             aggregate_names,
         }
     }
@@ -51,6 +62,13 @@ impl<'a> PointListAggregateResult<'a> {
             header.push(Cell::new(field));
         }
         table.set_header(header);
+
+        for row in 0..self.point_dictionary.size() {
+            // let mut cells = Vec::new();
+            for p in 0..self.point_dictionary.len() {
+                // self.point_dictionary.read
+            }
+        }
 
         // for batch in results {
         //     for row in 0..batch.num_rows() {

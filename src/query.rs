@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use arrow::compute::filter;
 
 pub struct Query<'a> {
     pub coordinates: HashMap<String, Option<Vec<String>>>,
@@ -35,5 +36,9 @@ pub struct AggregatedMeasure<'a> {
 impl<'a> AggregatedMeasure<'a> {
     pub fn new(field: &'a str, aggregation_function: &'a str) -> Self {
         AggregatedMeasure { field, aggregation_function }
+    }
+
+    pub fn alias(&self) -> String {
+        format!("{}({})", self.aggregation_function, self.field)
     }
 }

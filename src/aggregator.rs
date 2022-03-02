@@ -1,10 +1,11 @@
 use std::any::Any;
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 use arrow::array::{Array, ArrayRef, Float64Builder, PrimitiveArray, UInt64Builder};
 
-use arrow::datatypes::{ArrowPrimitiveType, DataType, Float64Type, UInt32Type, UInt64Type};
+use arrow::datatypes::{ArrowPrimitiveType, DataType, Field, Float64Type, UInt32Type, UInt64Type};
 use crate::chunk_array::ChunkArray;
 use crate::datastore::CHUNK_DEFAULT_SIZE;
 
@@ -17,6 +18,8 @@ pub trait Aggregator {
     fn as_any(&self) -> &dyn Any;
 
     fn get_destination(&self) -> &dyn Array;
+
+    fn get_field(&self) -> &Field;
 }
 
 pub trait AggregatorAccessor<T: ArrowPrimitiveType> {
@@ -27,10 +30,11 @@ pub struct SumUIntAggregator {
     source: ArrayRef,
     destination: Option<PrimitiveArray<UInt64Type>>,
     buffer: Rc<RefCell<Vec<u64>>>,
+    field: Field,
 }
 
 impl SumUIntAggregator {
-    fn new(source: ArrayRef) -> Box<dyn Aggregator> {
+    fn new(source: ArrayRef, field: Field) -> Box<dyn Aggregator> {
         let capacity = CHUNK_DEFAULT_SIZE; // FIXME make it grow when to big
         let mut buffer = Vec::with_capacity(capacity);
         buffer.resize(capacity, 0);
@@ -38,14 +42,16 @@ impl SumUIntAggregator {
             source,
             destination: None,
             buffer: Rc::new(RefCell::new(buffer)),
+            field,
         })
     }
 
-    fn new_with_buffer(source: ArrayRef, destination: Rc<RefCell<Vec<u64>>>) -> Box<dyn Aggregator> {
+    fn new_with_buffer(source: ArrayRef, field: Field, destination: Rc<RefCell<Vec<u64>>>) -> Box<dyn Aggregator> {
         Box::new(SumUIntAggregator {
             source,
             destination: None,
             buffer: destination,
+            field,
         })
     }
 
@@ -57,7 +63,8 @@ impl SumUIntAggregator {
 impl Aggregator for SumUIntAggregator {
     fn aggregate(&mut self, source_position: u32, destination_position: u32) {
         let a: u64 = read::<UInt32Type>(&self.source, source_position) as u64;
-        let b: u64 = match self.buffer.borrow().get(destination_position as usize) {
+        let buff = &*self.buffer;
+        let b: u64 = match buff.borrow().get(destination_position as usize) {
             None => { 0u64 }
             Some(v) => { *v }
         };
@@ -66,8 +73,9 @@ impl Aggregator for SumUIntAggregator {
 
     fn finish(&mut self) {
         let mut builder = UInt64Builder::new(CHUNK_DEFAULT_SIZE);
+        let buff = &*self.buffer;
         builder
-            .append_slice(self.buffer.borrow().as_slice())
+            .append_slice(buff.borrow().as_slice())
             .unwrap();
         let array: PrimitiveArray<UInt64Type> = builder.finish();
         self.destination = Some(array);
@@ -80,37 +88,38 @@ impl Aggregator for SumUIntAggregator {
     fn get_destination(&self) -> &dyn Array {
         self.get_destination()
     }
+
+    fn get_field(&self) -> &Field {
+        &self.field
+    }
 }
 
 pub struct SumFloat64Aggregator {
     source: ArrayRef,
     destination: Option<PrimitiveArray<Float64Type>>,
-    buffer: Vec<f64>,
-}
-
-pub struct SumFloat64Aggregator2 {
-    source: ArrayRef,
-    buffer: Rc<Vec<f64>>,
+    buffer: Rc<RefCell<Vec<f64>>>,
+    field: Field,
 }
 
 impl SumFloat64Aggregator {
-    fn new(source: ArrayRef) -> Box<dyn Aggregator> {
-        // fn new(source: ArrayRef) -> impl Aggregator<T> {
+    fn new(source: ArrayRef, field: Field) -> Box<dyn Aggregator> {
         let capacity = CHUNK_DEFAULT_SIZE; // FIXME make it grow when to big
         let mut buffer = Vec::with_capacity(capacity);
         buffer.resize(capacity, 0f64);
         Box::new(SumFloat64Aggregator {
             source,
             destination: None,
-            buffer,
+            buffer: Rc::new(RefCell::new(buffer)),
+            field,
         })
     }
 
-    fn new_with_buffer(source: ArrayRef, destination: Vec<f64>) -> Box<dyn Aggregator> {
+    fn new_with_buffer(source: ArrayRef, field: Field, destination: Rc<RefCell<Vec<f64>>>) -> Box<dyn Aggregator> {
         Box::new(SumFloat64Aggregator {
             source,
             destination: None,
             buffer: destination,
+            field,
         })
     }
 
@@ -122,18 +131,19 @@ impl SumFloat64Aggregator {
 impl Aggregator for SumFloat64Aggregator {
     fn aggregate(&mut self, source_position: u32, destination_position: u32) {
         let a: f64 = read::<Float64Type>(&self.source, source_position);
-        let x: Option<&f64> = self.buffer.get(destination_position as usize);
-        let b: f64 = match x {
+        let buff = &*self.buffer;
+        let b: f64 = match buff.borrow().get(destination_position as usize) {
             None => { 0f64 }
             Some(v) => { *v }
         };
-        self.buffer[destination_position as usize] = a + b;
+        buff.borrow_mut()[destination_position as usize] = a + b;
     }
 
     fn finish(&mut self) {
         let mut builder = Float64Builder::new(CHUNK_DEFAULT_SIZE);
+        let buff = &*self.buffer;
         builder
-            .append_slice(self.buffer.as_slice())
+            .append_slice(buff.borrow().as_slice())
             .unwrap();
         let array: PrimitiveArray<Float64Type> = builder.finish();
         self.destination = Some(array);
@@ -146,6 +156,10 @@ impl Aggregator for SumFloat64Aggregator {
     fn get_destination(&self) -> &dyn Array {
         self.get_destination()
     }
+
+    fn get_field(&self) -> &Field {
+        &self.field
+    }
 }
 
 pub struct AggregatorFactory;
@@ -155,13 +169,15 @@ impl AggregatorFactory {
         AggregatorFactory {}
     }
 
-    pub fn create(&self, source: &ChunkArray, _aggregation_type: &str, _destination_column_name: &str) -> Box<dyn Aggregator> {
+    pub fn create(&self, source: &ChunkArray, _aggregation_type: &str, destination_column_name: &str) -> Box<dyn Aggregator> {
         match source.field.data_type() {
             DataType::UInt32 => {
-                SumUIntAggregator::new(Arc::clone(source.array.as_ref().unwrap()))
+                let field = Field::new(destination_column_name, DataType::UInt64, false);
+                SumUIntAggregator::new(Arc::clone(source.array.as_ref().unwrap()), field)
             }
             DataType::Float64 => {
-                SumFloat64Aggregator::new(Arc::clone(source.array.as_ref().unwrap()))
+                let field = Field::new(destination_column_name, DataType::Float64, false);
+                SumFloat64Aggregator::new(Arc::clone(source.array.as_ref().unwrap()), field)
             }
             _ => {
                 panic!("{} not supported", source.field.data_type())
@@ -171,17 +187,20 @@ impl AggregatorFactory {
 
     pub fn create_with_destination(&self,
                                    source: &ChunkArray,
-                                   aggregator: &mut dyn Aggregator,
+                                   aggregator: &dyn Aggregator,
                                    _aggregation_type: &str) -> Box<dyn Aggregator> {
         match source.field.data_type() {
             DataType::UInt32 => {
                 let dest: &SumUIntAggregator = aggregator.as_any().downcast_ref::<SumUIntAggregator>().unwrap();
-                // let vec = dest.buffer;
-                SumUIntAggregator::new_with_buffer(Arc::clone(source.array.as_ref().unwrap()), Rc::clone(&dest.buffer)) // FIXME
+                SumUIntAggregator::new_with_buffer(Arc::clone(source.array.as_ref().unwrap()),
+                                                   aggregator.get_field().clone(),
+                                                   Rc::clone(&dest.buffer))
             }
             DataType::Float64 => {
-                let _dest: &SumFloat64Aggregator = aggregator.as_any().downcast_ref::<SumFloat64Aggregator>().unwrap();
-                SumFloat64Aggregator::new_with_buffer(Arc::clone(source.array.as_ref().unwrap()), Vec::new()) // FIXME
+                let dest: &SumFloat64Aggregator = aggregator.as_any().downcast_ref::<SumFloat64Aggregator>().unwrap();
+                SumFloat64Aggregator::new_with_buffer(Arc::clone(source.array.as_ref().unwrap()),
+                                                      aggregator.get_field().clone(),
+                                                      Rc::clone(&dest.buffer))
             }
             _ => {
                 panic!("{} not supported", source.field.data_type())

@@ -41,7 +41,7 @@ fn main() {
     let mut store = Store::new(schema_ref, vec![0], CHUNK_DEFAULT_SIZE as u32);
 
     let main_batch = create_main_batch(&store);
-    let s1_batch = create_main_batch(&store);
+    let s1_batch = create_s1_batch(&store);
 
     store.load(MAIN_SCENARIO_NAME, &main_batch);
     store.load("s1", &s1_batch);
@@ -92,9 +92,9 @@ fn create_s1_batch(store: &Store) -> RecordBatch {
     let id_array = UInt64Array::from(vec![0, 1, 2, 3, 4]);
     let quantity_array = UInt32Array::from(vec![5, 4, 4, 1, 4]);
     let product_array =
-        StringArray::from(vec!["syrup", "tofu", "mozzarella", "tofu", "tofu"]);
+        StringArray::from(vec!["syrup", "tofu", "mozzarella", "syrup", "tofu"]);
     let category_array =
-        StringArray::from(vec!["condiment", "milk", "milk", "milk", "milk"]);
+        StringArray::from(vec!["condiment", "milk", "milk", "condiment", "milk"]);
     let price_array = Float64Array::from(vec![1f64, 8f64, 4f64, 2f64, 8f64]);
 
     RecordBatch::try_new(
