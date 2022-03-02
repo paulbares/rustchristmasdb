@@ -1,37 +1,31 @@
 use std::collections::HashMap;
+use crate::dictionary_provider::Dictionary;
 
 
 #[derive(Debug)]
 pub struct PointDictionary {
-    dic: HashMap<Vec<u32>, u32>,
-    reverse_dic: HashMap<u32, Vec<u32>>,
+    dic: Dictionary<Vec<u32>>,
     point_length: u32,
 }
 
 impl PointDictionary {
     pub fn new(point_length: u32) -> PointDictionary {
         PointDictionary {
-            dic: HashMap::new(),
-            reverse_dic: HashMap::new(),
-            point_length
+            dic: Dictionary::new(),
+            point_length,
         }
     }
 
     pub fn map(&mut self, point: &[u32]) -> &u32 {
-        let len = self.dic.len();
-        let pos = *self.dic
-            .entry(Vec::from(point))
-            .or_insert(len as u32);
-
-        return &pos
+        self.dic.map(Vec::from(point))
     }
 
-    // pub fn read(&self, row: u32) -> &[u32] {
-    //     self.dic.ge
-    // }
+    pub fn read(&self, position: &u32) -> Option<&Vec<u32>> {
+        self.dic.read(position)
+    }
 
     pub fn size(&self) -> usize {
-        self.dic.len()
+        self.dic.size()
     }
 
     pub fn len(&self) -> u32 {

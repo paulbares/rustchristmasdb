@@ -49,4 +49,8 @@ impl<T> Dictionary<T>
     pub fn get_position(&self, value: &T) -> Option<&u32> {
         self.map.get(value)
     }
+
+    pub fn size(&self) -> usize {
+        self.map.len()
+    }
 }

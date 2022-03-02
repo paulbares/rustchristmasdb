@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 
 use arrow::array::Array;
 use comfy_table::{Table, Cell};
@@ -64,10 +65,19 @@ impl<'a> PointListAggregateResult<'a> {
         table.set_header(header);
 
         for row in 0..self.point_dictionary.size() {
-            // let mut cells = Vec::new();
-            for p in 0..self.point_dictionary.len() {
-                // self.point_dictionary.read
+            let mut cells = Vec::new();
+            let point = self.point_dictionary.read(&(row as u32)).unwrap();
+            for p in 0..point.len() {
+                let o = self.dictionaries[p].read(&point[p]).unwrap();
+                cells.push(Cell::new(o));
             }
+
+            for aggregator in self.aggregators.iter() {
+                let array = aggregator.get_destination();
+                let column = &Arc::clone(array);
+                arrow::util::display::array_value_to_string(column, row);
+            }
+            table.add_row(cells);
         }
 
         // for batch in results {
