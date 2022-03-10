@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use crate::bitmap_row_iterable_provider::{BitmapRowIterableProvider, RangeRowIterable, RowIterableProvider};
-use crate::Store;
+use crate::datastore::Store;
 
 pub struct RowIterableProviderFactory;
 

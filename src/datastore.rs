@@ -1,7 +1,7 @@
 use crate::chunk_array::ChunkArray;
 use crate::row_mapping::{IdentityMapping, IntIntMapRowMapping, RowMapping};
-use arrow::array::{Array, ArrayBuilder, ArrayRef, Float64Builder, PrimitiveArray, PrimitiveBuilder, StringArray, UInt32Array, UInt32Builder, UInt64Array, UInt64Builder};
-use arrow::datatypes::{ArrowPrimitiveType, DataType, Field, Float64Type, Schema, SchemaRef, UInt32Type, UInt64Type};
+use arrow::array::{Array, ArrayBuilder, ArrayRef, Float64Builder, Int64Array, Int64Builder, PrimitiveArray, PrimitiveBuilder, StringArray, UInt32Array, UInt32Builder, UInt64Array, UInt64Builder};
+use arrow::datatypes::{ArrowPrimitiveType, DataType, Field, Float64Type, Int64Type, Schema, SchemaRef, UInt32Type, UInt64Type};
 use arrow::record_batch::RecordBatch;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -26,7 +26,7 @@ pub struct Store {
     pub vector_by_field_by_scenario: HashMap<String, HashMap<String, ChunkArray>>,
     pub row_mapping_by_field_by_scenario: HashMap<String, HashMap<String, Box<dyn RowMapping>>>,
     pub dictionary_provider: DictionaryProvider,
-    pub primary_index: HashMap<u64, u64>, // FIXME suppose the key is a u64. Should be generic.
+    pub primary_index: HashMap<i64, u64>, // FIXME suppose the key is a i64. Should be generic.
 }
 
 impl Store {
@@ -107,6 +107,9 @@ impl Store {
                     DataType::UInt32 => {
                         self.build_scenario_array(col, scenario, field, UInt32Builder::new(self.array_size as usize));
                     }
+                    DataType::Int64 => {
+                        self.build_scenario_array(col, scenario, field, Int64Builder::new(self.array_size as usize));
+                    }
                     DataType::Float64 => {
                         self.build_scenario_array(col, scenario, field, Float64Builder::new(self.array_size as usize));
                     }
@@ -120,7 +123,7 @@ impl Store {
 
                         let row_mapping = IntIntMapRowMapping::new();
                         let arr = col.as_any().downcast_ref::<StringArray>().unwrap();
-                        let key_col = key_col.as_any().downcast_ref::<UInt64Array>().unwrap();
+                        let key_col = key_col.as_any().downcast_ref::<Int64Array>().unwrap();
                         let base_vector = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field.name()).unwrap();
                         let base = base_vector.array.as_ref().unwrap().as_any().downcast_ref::<UInt32Array>().unwrap();
                         let dictionary = self.dictionary_provider.dicos
@@ -188,7 +191,7 @@ impl Store {
             }
 
             if index as u32 == self.key_indices[0] {
-                let arr = col.as_any().downcast_ref::<UInt64Array>().unwrap(); // FIXME should not be hardcoded
+                let arr = col.as_any().downcast_ref::<Int64Array>().unwrap(); // FIXME should not be hardcoded
                 let mut r: u64 = 0;
                 for b in arr.iter() {
                     self.primary_index.insert(b.unwrap(), r);
@@ -205,6 +208,10 @@ impl Store {
                 DataType::UInt32 => {
                     let builder = UInt32Builder::new(self.array_size as usize);
                     self.build_base_array::<UInt32Type>(col, scenario, field, builder);
+                }
+                DataType::Int64 => {
+                    let builder = Int64Builder::new(self.array_size as usize);
+                    self.build_base_array::<Int64Type>(col, scenario, field, builder);
                 }
                 DataType::Float64 => {
                     let builder = Float64Builder::new(self.array_size as usize);
@@ -254,7 +261,7 @@ impl Store {
 
         let row_mapping = IntIntMapRowMapping::new();
         let arr = col.as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
-        let key_col = key_col.as_any().downcast_ref::<UInt64Array>().unwrap();
+        let key_col = key_col.as_any().downcast_ref::<Int64Array>().unwrap();
         let base_vector = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field.name()).unwrap();
         let base = base_vector.array.as_ref().unwrap().as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
         for element in arr.iter().enumerate() {

@@ -1,17 +1,21 @@
+use std::any::Any;
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::Debug;
+use std::hash::Hash;
 use std::sync::Arc;
 use arrow::array;
 
-use arrow::array::Array;
+use arrow::array::{Array, Float64Array, UInt32Array};
 use arrow::datatypes::{DataType, Int16Type, Int32Type, Int64Type, Int8Type, IntervalUnit, TimeUnit, UInt16Type, UInt32Type, UInt64Type, UInt8Type};
 use arrow::error::ArrowError;
 use arrow::util::display::make_string_from_decimal;
 use comfy_table::{Table, Cell};
 
 use crate::dictionary_provider::Dictionary;
-use crate::{Aggregator, PointDictionary};
-use crate::make_string;
+use crate::aggregator::Aggregator;
+use crate::{make_string, assert_row_value};
+use crate::point_dictionary::PointDictionary;
 
 pub struct PointListAggregateResult<'a> {
     point_dictionary: PointDictionary,
@@ -44,6 +48,28 @@ impl<'a> PointListAggregateResult<'a> {
             dictionaries,
             aggregators: aggregators_vec,
             aggregate_names,
+        }
+    }
+
+    pub fn assertAggregate<K: 'static + std::fmt::Debug>(&self, coordinates: Vec<&str>, expected_value: K) { // FIXME why 'static is needed?
+        let mut buffer = Vec::with_capacity(self.point_names.len());
+        for i in 0..coordinates.len() {
+            buffer.push(self.dictionaries[i].get_position(&String::from(coordinates[i])).unwrap().clone());
+        }
+        let position = self.point_dictionary.get_position(&buffer[..]);
+        match position {
+            None => {}
+            Some(row) => {
+                for i in 0..self.aggregators.len() {
+                    let array = self.aggregators[i].get_destination();
+                    let r = *row as usize;
+                    match array.data_type() {
+                        DataType::UInt32 => assert_row_value!(UInt32Array, u32, array, r, expected_value),
+                        DataType::Float64 => assert_row_value!(Float64Array, f64, array, r, expected_value),
+                        _ => panic!("assert not implemented for {:?} type", array.data_type()),
+                    }
+                }
+            }
         }
     }
 
@@ -125,6 +151,15 @@ macro_rules! make_string {
         };
 
         Ok(s)
+    }};
+}
+
+#[macro_export]
+macro_rules! assert_row_value {
+     ($data_type: ty, $type: ty, $column: ident, $row: ident, $expected_row_value: ident) => {{
+        let array = $column.as_any().downcast_ref::<$data_type>().unwrap();
+        let any: &dyn Any = &$expected_row_value;
+        assert_eq!(&array.value($row), any.downcast_ref::<$type>().unwrap());
     }};
 }
 

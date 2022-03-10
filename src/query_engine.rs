@@ -3,9 +3,11 @@ use std::rc::Rc;
 
 use arrow::array::Array;
 use arrow::datatypes::UInt32Type;
-use datastore::MAIN_SCENARIO_NAME;
-use crate::{Aggregator, AggregatorFactory, datastore, PointDictionary, PointListAggregateResult, Query, SCENARIO_FIELD_NAME, Store};
-
+use crate::aggregator::{Aggregator, AggregatorFactory};
+use crate::datastore::{MAIN_SCENARIO_NAME, SCENARIO_FIELD_NAME, Store};
+use crate::point_dictionary::PointDictionary;
+use crate::point_list_aggregates_result::PointListAggregateResult;
+use crate::query::Query;
 use crate::row_iterable_provider::RowIterableProviderFactory;
 
 pub struct QueryEngine<'a> {

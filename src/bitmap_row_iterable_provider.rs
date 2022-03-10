@@ -4,8 +4,8 @@ use std::ops::{BitAndAssign, Range};
 use arrow::datatypes::UInt32Type;
 
 use roaring::RoaringBitmap;
-use crate::{MAIN_SCENARIO_NAME, SCENARIO_FIELD_NAME, Store};
 use crate::chunk_array::ChunkArray;
+use crate::datastore::{MAIN_SCENARIO_NAME, SCENARIO_FIELD_NAME, Store};
 
 pub trait RowIterableProvider {
     fn get(&self, scenario: &str) -> RowIterable;

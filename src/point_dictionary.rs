@@ -24,6 +24,10 @@ impl PointDictionary {
         self.dic.read(position)
     }
 
+    pub fn get_position(&self, point: &[u32]) -> Option<&u32> {
+        self.dic.get_position(&Vec::from(point))
+    }
+
     pub fn size(&self) -> usize {
         self.dic.size()
     }
