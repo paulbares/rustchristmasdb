@@ -67,11 +67,12 @@ impl Store {
         let scenario_array = self.vector_by_field_by_scenario.get(scenario).unwrap().get(field);
         match scenario_array {
             None => {
-                return base_array.unwrap();
+                base_array.unwrap()
             }
-            Some(_array) => {
-                let _mapping = self.row_mapping_by_field_by_scenario.get(scenario).unwrap().get(field).unwrap();
-                return scenario_array.unwrap(); // FIXME use mapping
+            Some(array) => {
+                let mapping = self.row_mapping_by_field_by_scenario.get(scenario).unwrap().get(field).unwrap();
+                scenario_array.unwrap(); // FIXME use mapping
+                panic!("not implemented");
             }
         }
     }
@@ -95,6 +96,7 @@ impl Store {
         if scenario == MAIN_SCENARIO_NAME {
             self.load_main_scenario(scenario, batch);
         } else {
+            let key_col = batch.column(self.key_indices[0] as usize);
             for index in 0..batch.columns().len() {
                 let col = batch.column(index);
                 let schema = batch.schema();
@@ -102,56 +104,58 @@ impl Store {
 
                 match field.data_type() {
                     DataType::UInt64 => {
-                        self.build_scenario_array(col, scenario, field, UInt64Builder::new(self.array_size as usize));
+                        self.build_scenario_array(col, key_col, scenario, field, UInt64Builder::new(self.array_size as usize));
                     }
                     DataType::UInt32 => {
-                        self.build_scenario_array(col, scenario, field, UInt32Builder::new(self.array_size as usize));
+                        self.build_scenario_array(col, key_col, scenario, field, UInt32Builder::new(self.array_size as usize));
                     }
                     DataType::Int64 => {
-                        self.build_scenario_array(col, scenario, field, Int64Builder::new(self.array_size as usize));
+                        self.build_scenario_array(col, key_col, scenario, field, Int64Builder::new(self.array_size as usize));
                     }
                     DataType::Float64 => {
-                        self.build_scenario_array(col, scenario, field, Float64Builder::new(self.array_size as usize));
+                        self.build_scenario_array(col, key_col, scenario, field, Float64Builder::new(self.array_size as usize));
                     }
                     DataType::Utf8 => {
-                        let arr = col.as_any().downcast_ref::<StringArray>().unwrap();
-                        let mut builder = UInt32Builder::new(arr.len());
-
-                        let fields = self.schema.fields();
-                        let key_field = fields.get(self.key_indices[0] as usize).unwrap();
-                        let key_col = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(key_field.name()).unwrap().array.as_ref().unwrap();
+                        // let arr = col.as_any().downcast_ref::<StringArray>().unwrap();
+                        // let mut builder = UInt32Builder::new(arr.len());
+                        // let row_mapping = IntIntMapRowMapping::new();
 
                         let row_mapping = IntIntMapRowMapping::new();
                         let arr = col.as_any().downcast_ref::<StringArray>().unwrap();
-                        let key_col = key_col.as_any().downcast_ref::<Int64Array>().unwrap();
+                        let key_arr = key_col.as_any().downcast_ref::<Int64Array>().unwrap();
+
                         let base_vector = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field.name()).unwrap();
-                        let base = base_vector.array.as_ref().unwrap().as_any().downcast_ref::<UInt32Array>().unwrap();
+                        let base_arr = base_vector.array.as_ref().unwrap().as_any().downcast_ref::<UInt32Array>().unwrap();
+
                         let dictionary = self.dictionary_provider.dicos
                             .get_mut(field.name())
                             .expect(format!("cannot find dictionary for field '{}'", field).as_str());
-                        for element in arr.iter().enumerate() {
-                            let key = key_col.value(element.0);
+                        let mut builder = UInt32Builder::new(self.array_size as usize);
+
+                        let mut cursor: u32 = 0;
+                        for i in 0..arr.len() {
+                            let key = key_arr.value(i);
                             let row = self.primary_index
                                 .get(&key)
                                 .expect(format!("Cannot find key {} in {} scenario", key, MAIN_SCENARIO_NAME).as_str());
                             let row = *row as usize;
-                            let o = base.value(row);
-                            let current_value = arr.value(row);
-
-                            let position = dictionary
-                                .get_position(&current_value.to_string());
+                            let original_value = base_arr.value(row);
+                            let value = arr.value(i);
+                            let position = dictionary.get_position(&value.to_string());
                             match position {
                                 None => {
                                     // should be mapped
-                                    let p = dictionary.map(current_value.to_string());
+                                    let p = dictionary.map(value.to_string());
                                     builder.append_value(*p).unwrap();
-                                    row_mapping.map(row as u32, element.0 as u32);
+                                    row_mapping.map(row as u32, cursor);
+                                    cursor += 1;
                                 }
                                 Some(p) => {
-                                    if *p != o {
+                                    if *p != original_value {
                                         // already in dictionary but current value is different
                                         builder.append_value(*p).unwrap();
-                                        row_mapping.map(row as u32, element.0 as u32);
+                                        row_mapping.map(row as u32, cursor);
+                                        cursor += 1;
                                     }
                                 }
                             }
@@ -252,28 +256,29 @@ impl Store {
     fn build_scenario_array<T: ArrowPrimitiveType>(
         &mut self,
         col: &ArrayRef,
+        key_col: &ArrayRef,
         scenario: &str,
         field: &Field,
         mut builder: PrimitiveBuilder<T>) {
-        let fields = self.schema.fields();
-        let key_field = fields.get(self.key_indices[0] as usize).unwrap();
-        let key_col = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(key_field.name()).unwrap().array.as_ref().unwrap();
-
         let row_mapping = IntIntMapRowMapping::new();
         let arr = col.as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
-        let key_col = key_col.as_any().downcast_ref::<Int64Array>().unwrap();
+        let key_arr = key_col.as_any().downcast_ref::<Int64Array>().unwrap();
         let base_vector = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field.name()).unwrap();
-        let base = base_vector.array.as_ref().unwrap().as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
-        for element in arr.iter().enumerate() {
-            let key = key_col.value(element.0);
+        let base_arr = base_vector.array.as_ref().unwrap().as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
+
+        let mut cursor: u32 = 0;
+        for i in 0..arr.len() {
+            let key = key_arr.value(i);
             let row = self.primary_index
                 .get(&key)
                 .expect(format!("Cannot find key {} in {} scenario", key, MAIN_SCENARIO_NAME).as_str());
             let row = *row as usize;
-            let o = base.value(row);
-            if o != arr.value(row) {
-                builder.append_value(element.1.unwrap()).unwrap();
-                row_mapping.map(row as u32, element.0 as u32)
+            let original_value = base_arr.value(row);
+            let value = arr.value(i);
+            if original_value != value {
+                builder.append_value(value).unwrap();
+                row_mapping.map(row as u32, cursor);
+                cursor += 1;
             }
         }
 
@@ -306,8 +311,4 @@ impl Store {
     pub fn schema(&self) -> Arc<Schema> {
         Arc::clone(&self.schema)
     }
-
-    // pub fn show(&self) {
-    // self.vector_by_field_by_scenario
-    // }
 }

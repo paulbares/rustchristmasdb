@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt;
 use std::fmt::Formatter;
 
 pub trait RowMapping {
@@ -7,7 +8,7 @@ pub trait RowMapping {
 
     fn get(&self, row: &u32) -> Option<u32>;
 
-    fn debug(&self) -> &'static str;
+    fn debug(&self) -> String;
 }
 
 impl std::fmt::Debug for dyn RowMapping {
@@ -30,8 +31,8 @@ impl RowMapping for IdentityMapping {
         Some(*row)
     }
 
-    fn debug(&self) -> &'static str {
-        "identity_mapping"
+    fn debug(&self) -> String {
+        String::from("identity_mapping")
     }
 }
 
@@ -63,7 +64,13 @@ impl RowMapping for IntIntMapRowMapping {
         self.mapping.borrow().get(row).cloned()
     }
 
-    fn debug(&self) -> &'static str {
-        "int_int_row_mapping"
+    fn debug(&self) -> String {
+        format!("int_int_row_mapping: {:?}", *self.mapping.borrow())
+    }
+}
+
+impl fmt::Display for IntIntMapRowMapping {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Mapping {:?}", *self.mapping.borrow())
     }
 }
