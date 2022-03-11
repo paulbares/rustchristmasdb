@@ -1,4 +1,4 @@
-use crate::chunk_array::ChunkArray;
+use crate::chunk_array::{ChunkArray, ChunkArrayReader};
 use crate::row_mapping::{IdentityMapping, IntIntMapRowMapping, RowMapping};
 use arrow::array::{Array, ArrayBuilder, ArrayRef, Float64Builder, Int64Array, Int64Builder, PrimitiveArray, PrimitiveBuilder, StringArray, UInt32Array, UInt32Builder, UInt64Array, UInt64Builder};
 use arrow::datatypes::{ArrowPrimitiveType, DataType, Field, Float64Type, Int64Type, Schema, SchemaRef, UInt32Type, UInt64Type};
@@ -9,6 +9,7 @@ use std::fmt::Debug;
 
 
 use std::sync::Arc;
+use crate::chunk_array::ChunkArrayReader::{BaseReader, ScenarioReader};
 
 
 use crate::dictionary_provider::{Dictionary, DictionaryProvider};
@@ -62,16 +63,23 @@ impl Store {
         }
     }
 
-    pub fn get_scenario_chunk_array(&self, scenario: &str, field: &str) -> &ChunkArray {
+    pub fn get_scenario_chunk_array(&self, scenario: &str, field: &str) -> ChunkArrayReader {
         let base_array = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field);
         let scenario_array = self.vector_by_field_by_scenario.get(scenario).unwrap().get(field);
         match scenario_array {
             None => {
-                base_array.unwrap()
+                BaseReader {
+                    base_array: base_array.unwrap()
+                }
             }
             Some(array) => {
                 let mapping = self.row_mapping_by_field_by_scenario.get(scenario).unwrap().get(field).unwrap();
-                scenario_array.unwrap(); // FIXME use mapping
+                ScenarioReader {
+                    base_array: base_array.unwrap(),
+                    scenario_array: array,
+                    scenario: String::from(scenario),
+                    row_mapping: mapping,
+                };
                 panic!("not implemented");
             }
         }

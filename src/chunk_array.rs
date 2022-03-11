@@ -1,6 +1,43 @@
+use std::borrow::Borrow;
 use arrow::array::{Array, ArrayRef, PrimitiveArray};
 
 use arrow::datatypes::{ArrowPrimitiveType, Field};
+use crate::row_mapping::RowMapping;
+
+#[derive(Debug)]
+pub enum ChunkArrayReader<'a> {
+    BaseReader { base_array: &'a ChunkArray },
+    ScenarioReader {
+        base_array: &'a ChunkArray,
+        scenario_array: &'a ChunkArray,
+        scenario: String,
+        row_mapping: &'a Box<dyn RowMapping>,
+    },
+}
+
+impl<'a> ChunkArrayReader<'a> {
+    pub fn read<T: ArrowPrimitiveType>(&self, row: u32) -> T::Native {
+        match self {
+            ChunkArrayReader::BaseReader { base_array } => {
+                let array = base_array.array.as_ref().unwrap().as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
+                unsafe { array.value_unchecked(row as usize) }
+            }
+            ChunkArrayReader::ScenarioReader { base_array, scenario_array, scenario, row_mapping } => {
+                let scenario_row = row_mapping.get(&row);
+                match scenario_row {
+                    None => {
+                        let array = base_array.array.as_ref().unwrap().as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
+                        unsafe { array.value_unchecked(row as usize) }
+                    }
+                    Some(sr) => {
+                        let array = scenario_array.array.as_ref().unwrap().as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
+                        unsafe { array.value_unchecked(sr as usize) }
+                    }
+                }
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct ChunkArray {
