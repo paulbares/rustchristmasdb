@@ -112,11 +112,11 @@ impl<'a> BitmapRowIterableProvider<'a> {
         let first_field = fields_without_sim.remove(0);
         let reader = store.get_scenario_chunk_array(MAIN_SCENARIO_NAME, first_field.as_str());
         // "cast" into BaseReader because we know the underlying type for MAIN_SCENARIO_NAME
-        let r = if let ChunkArrayReader::BaseReader { base_array } = reader { &base_array } else { unreachable!() };
+        // let r = if let ChunkArrayReader::BaseReader { base_array } = reader { Arc::&base_array } else { unreachable!() };
         let mut bitmap = BitmapRowIterableProvider::initialize_bitmap(
             store,
             accepted_values_by_field.get(first_field.as_str()).unwrap(),
-            r);
+            reader);
         BitmapRowIterableProvider::apply_conditions(
             accepted_values_by_field,
             store,
@@ -127,7 +127,7 @@ impl<'a> BitmapRowIterableProvider<'a> {
         bitmap
     }
 
-    fn initialize_bitmap(store: &'a Store, accepted_values: &HashSet<u32>, vector: &ChunkArray) -> RoaringBitmap {
+    fn initialize_bitmap(store: &'a Store, accepted_values: &HashSet<u32>, vector: ChunkArrayReader) -> RoaringBitmap {
         let mut matching_rows = RoaringBitmap::new();
         for row in 0..*store.row_count.borrow() {
             if accepted_values.contains(&vector.read::<UInt32Type>(row as u32)) {

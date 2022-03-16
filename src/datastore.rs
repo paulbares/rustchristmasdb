@@ -124,46 +124,45 @@ impl Store {
                         self.build_scenario_array(col, key_col, scenario, field, Float64Builder::new(self.array_size as usize));
                     }
                     DataType::Utf8 => {
-                        // let arr = col.as_any().downcast_ref::<StringArray>().unwrap();
-                        // let mut builder = UInt32Builder::new(arr.len());
-                        // let row_mapping = IntIntMapRowMapping::new();
-
                         let row_mapping = IntIntMapRowMapping::new();
                         let arr = col.as_any().downcast_ref::<StringArray>().unwrap();
                         let key_arr = key_col.as_any().downcast_ref::<Int64Array>().unwrap();
 
-                        let base_vector = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field.name()).unwrap();
-                        let base_arr = base_vector.array.as_ref().unwrap().as_any().downcast_ref::<UInt32Array>().unwrap();
-
-                        let dictionary = self.dictionary_provider.dicos
-                            .get_mut(field.name())
-                            .expect(format!("cannot find dictionary for field '{}'", field).as_str());
                         let mut builder = UInt32Builder::new(self.array_size as usize);
+                        {
+                            let base_vector = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field.name()).unwrap();
+                            let array_ref = base_vector.array.borrow();
+                            let base_arr = array_ref.as_ref().unwrap().as_any().downcast_ref::<UInt32Array>().unwrap();
 
-                        let mut cursor: u32 = 0;
-                        for i in 0..arr.len() {
-                            let key = key_arr.value(i);
-                            let row = self.primary_index
-                                .get(&key)
-                                .expect(format!("Cannot find key {} in {} scenario", key, MAIN_SCENARIO_NAME).as_str());
-                            let row = *row as usize;
-                            let original_value = base_arr.value(row);
-                            let value = arr.value(i);
-                            let position = dictionary.get_position(&value.to_string());
-                            match position {
-                                None => {
-                                    // should be mapped
-                                    let p = dictionary.map(value.to_string());
-                                    builder.append_value(*p).unwrap();
-                                    row_mapping.map(row as u32, cursor);
-                                    cursor += 1;
-                                }
-                                Some(p) => {
-                                    if *p != original_value {
-                                        // already in dictionary but current value is different
+                            let dictionary = self.dictionary_provider.dicos
+                                .get_mut(field.name())
+                                .expect(format!("cannot find dictionary for field '{}'", field).as_str());
+
+                            let mut cursor: u32 = 0;
+                            for i in 0..arr.len() {
+                                let key = key_arr.value(i);
+                                let row = self.primary_index
+                                    .get(&key)
+                                    .expect(format!("Cannot find key {} in {} scenario", key, MAIN_SCENARIO_NAME).as_str());
+                                let row = *row as usize;
+                                let original_value = base_arr.value(row);
+                                let value = arr.value(i);
+                                let position = dictionary.get_position(&value.to_string());
+                                match position {
+                                    None => {
+                                        // should be mapped
+                                        let p = dictionary.map(value.to_string());
                                         builder.append_value(*p).unwrap();
                                         row_mapping.map(row as u32, cursor);
                                         cursor += 1;
+                                    }
+                                    Some(p) => {
+                                        if *p != original_value {
+                                            // already in dictionary but current value is different
+                                            builder.append_value(*p).unwrap();
+                                            row_mapping.map(row as u32, cursor);
+                                            cursor += 1;
+                                        }
                                     }
                                 }
                             }
@@ -238,9 +237,7 @@ impl Store {
                     for element in string_array {
                         builder.append_value(*dic.map(element.unwrap().to_string())).unwrap();
                     }
-                    let x = self.get_chunk_array(scenario, field);
-                    let mut x1: ChunkArray = x.borrow_mut();
-                    x1.set_array(Arc::new(builder.finish()));
+                    self.get_chunk_array(scenario, field).set_array(Arc::new(builder.finish()));
                 }
                 _ => { panic!("type not supported {}", field.data_type()) }
             }
@@ -258,9 +255,7 @@ impl Store {
             builder.append_value(element.unwrap()).unwrap();
         }
         let array = builder.finish();
-        let chunk_array = self.get_chunk_array(scenario, field);
-        chunk_array.borrow_mut().set_array(Arc::new(array));
-        // chunk_array.set_array(Arc::new(array));
+        self.get_chunk_array(scenario, field).borrow_mut().set_array(Arc::new(array));
     }
 
     fn build_scenario_array<T: ArrowPrimitiveType>(
@@ -273,25 +268,31 @@ impl Store {
         let row_mapping = IntIntMapRowMapping::new();
         let arr = col.as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
         let key_arr = key_col.as_any().downcast_ref::<Int64Array>().unwrap();
-        let base_vector = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field.name()).unwrap();
-        let base_arr = base_vector.array.as_ref().unwrap().as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
 
-        let mut cursor: u32 = 0;
-        for i in 0..arr.len() {
-            let key = key_arr.value(i);
-            let row = self.primary_index
-                .get(&key)
-                .expect(format!("Cannot find key {} in {} scenario", key, MAIN_SCENARIO_NAME).as_str());
-            let row = *row as usize;
-            let original_value = base_arr.value(row);
-            let value = arr.value(i);
-            if original_value != value {
-                builder.append_value(value).unwrap();
-                row_mapping.map(row as u32, cursor);
-                cursor += 1;
+        // Create a block here to borrow vector_by_field_by_scenario as immutable.
+        {
+            let base_vector = self.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(field.name()).unwrap();
+            let array_ref = base_vector.array.borrow();
+            let base_arr = array_ref.as_ref().unwrap().as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
+
+            let mut cursor: u32 = 0;
+            for i in 0..arr.len() {
+                let key = key_arr.value(i);
+                let row = self.primary_index
+                    .get(&key)
+                    .expect(format!("Cannot find key {} in {} scenario", key, MAIN_SCENARIO_NAME).as_str());
+                let row = *row as usize;
+                let original_value = base_arr.value(row);
+                let value = arr.value(i);
+                if original_value != value {
+                    builder.append_value(value).unwrap();
+                    row_mapping.map(row as u32, cursor);
+                    cursor += 1;
+                }
             }
         }
 
+        // This block borrow vector_by_field_by_scenario as mutable.
         if !builder.is_empty() {
             self.vector_by_field_by_scenario
                 .entry(scenario.to_string())

@@ -32,10 +32,9 @@ fn test_wildcard_scenario_only() {
         .add_wildcard_coordinate(SCENARIO_FIELD_NAME)
         .add_aggregated_measure("price", "sum");
 
-    println!("{:?}", store.row_mapping_by_field_by_scenario);
     let qe = QueryEngine::new(&store);
     let result = qe.execute(query);
-    // println!("{}", result);
+    println!("{}", result);
     result.assertAggregate(Vec::from(["base"]), 14f64);
     result.assertAggregate(Vec::from(["s1"]), 13f64);
     result.assertAggregate(Vec::from(["s2"]), 17f64);

@@ -50,7 +50,7 @@ impl<'a> QueryEngine<'a> {
                 point.resize(point_size, 0);
                 for point_index in 0..point_size {
                     if point_index != scenario_index {
-                        point[point_index] = columns[point_index].unwrap().read::<UInt32Type>(row);
+                        point[point_index] = columns[point_index].as_ref().unwrap().read::<UInt32Type>(row);
                     } else {
                         point[point_index] = *i;
                     }
