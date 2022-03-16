@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use arrow::array::Array;
 use arrow::datatypes::UInt32Type;
@@ -136,7 +137,7 @@ impl<'a> QueryEngine<'a> {
                 query.measures.iter().for_each(|measure| {
                     let source = self.store.get_scenario_chunk_array(scenario, &measure.field.to_string());
                     let aggregator = factory.create(
-                        source,
+                        Arc::new(source),
                         measure.aggregation_function,
                         measure.alias().as_str());
                     aggregators.push(aggregator);
@@ -148,7 +149,7 @@ impl<'a> QueryEngine<'a> {
                     let measure = &query.measures[i];
                     let source = self.store.get_scenario_chunk_array(scenario, &measure.field.to_string());
                     let aggregator = factory.create_with_destination(
-                        source,
+                        Arc::new(source),
                         &*x[i],
                         measure.aggregation_function);
                     aggregators.push(aggregator);

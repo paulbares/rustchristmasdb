@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Formatter;
+use std::sync::Arc;
 
 pub trait RowMapping {
     fn map(&self, row: u32, target_row: u32);
@@ -48,8 +49,8 @@ pub struct IntIntMapRowMapping {
 }
 
 impl IntIntMapRowMapping {
-    pub fn new() -> Box<dyn RowMapping> {
-        Box::new(IntIntMapRowMapping {
+    pub fn new() -> Arc<dyn RowMapping> {
+        Arc::new(IntIntMapRowMapping {
             mapping: RefCell::new(HashMap::new()),
         })
     }

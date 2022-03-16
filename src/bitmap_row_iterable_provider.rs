@@ -4,7 +4,7 @@ use std::ops::{BitAndAssign, Range};
 use arrow::datatypes::UInt32Type;
 
 use roaring::RoaringBitmap;
-use crate::chunk_array::ChunkArray;
+use crate::chunk_array::{ChunkArray, ChunkArrayReader};
 use crate::datastore::{MAIN_SCENARIO_NAME, SCENARIO_FIELD_NAME, Store};
 
 pub trait RowIterableProvider {
@@ -110,10 +110,13 @@ impl<'a> BitmapRowIterableProvider<'a> {
         fields_without_sim.iter().for_each(|f| res.push(store.vector_by_field_by_scenario.get(MAIN_SCENARIO_NAME).unwrap().get(f).unwrap()));
 
         let first_field = fields_without_sim.remove(0);
+        let reader = store.get_scenario_chunk_array(MAIN_SCENARIO_NAME, first_field.as_str());
+        // "cast" into BaseReader because we know the underlying type for MAIN_SCENARIO_NAME
+        let r = if let ChunkArrayReader::BaseReader { base_array } = reader { &base_array } else { unreachable!() };
         let mut bitmap = BitmapRowIterableProvider::initialize_bitmap(
             store,
             accepted_values_by_field.get(first_field.as_str()).unwrap(),
-            store.get_scenario_chunk_array(MAIN_SCENARIO_NAME, first_field.as_str()));
+            r);
         BitmapRowIterableProvider::apply_conditions(
             accepted_values_by_field,
             store,

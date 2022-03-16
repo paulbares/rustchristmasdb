@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use crate::chunk_array::{ChunkArray, ChunkArrayReader};
 use crate::row_mapping::{IdentityMapping, IntIntMapRowMapping, RowMapping};
 use arrow::array::{Array, ArrayBuilder, ArrayRef, Float64Builder, Int64Array, Int64Builder, PrimitiveArray, PrimitiveBuilder, StringArray, UInt32Array, UInt32Builder, UInt64Array, UInt64Builder};
@@ -24,8 +25,8 @@ pub struct Store {
     schema: SchemaRef,
     key_indices: Vec<u32>,
     array_size: u32,
-    pub vector_by_field_by_scenario: HashMap<String, HashMap<String, ChunkArray>>,
-    pub row_mapping_by_field_by_scenario: HashMap<String, HashMap<String, Box<dyn RowMapping>>>,
+    pub vector_by_field_by_scenario: HashMap<String, HashMap<String, Arc<ChunkArray>>>,
+    pub row_mapping_by_field_by_scenario: HashMap<String, HashMap<String, Arc<dyn RowMapping>>>,
     pub dictionary_provider: DictionaryProvider,
     pub primary_index: HashMap<i64, u64>, // FIXME suppose the key is a i64. Should be generic.
 }
@@ -35,7 +36,7 @@ impl Store {
         let mut vector_by_field_by_scenario = HashMap::new();
         let mut row_mapping_by_field_by_scenario: HashMap<
             String,
-            HashMap<String, Box<dyn RowMapping>>,
+            HashMap<String, Arc<dyn RowMapping>>,
         > = HashMap::new();
         schema.fields().iter().for_each(|f| {
             let field = f.clone();
@@ -43,12 +44,12 @@ impl Store {
                 .entry(MAIN_SCENARIO_NAME.to_string())
                 .or_insert(HashMap::new())
                 .entry(field.name().to_string())
-                .or_insert_with(|| Store::create_chunk_array(field, array_size));
+                .or_insert_with(|| Arc::new(Store::create_chunk_array(field, array_size)));
             row_mapping_by_field_by_scenario
                 .entry(MAIN_SCENARIO_NAME.to_string())
                 .or_insert(HashMap::new())
                 .entry(f.name().clone())
-                .or_insert_with(|| Box::new(IdentityMapping::new()));
+                .or_insert_with(|| Arc::new(IdentityMapping::new()));
         });
 
         Store {
@@ -69,18 +70,17 @@ impl Store {
         match scenario_array {
             None => {
                 BaseReader {
-                    base_array: base_array.unwrap()
+                    base_array: Arc::clone(base_array.unwrap())
                 }
             }
             Some(array) => {
                 let mapping = self.row_mapping_by_field_by_scenario.get(scenario).unwrap().get(field).unwrap();
                 ScenarioReader {
-                    base_array: base_array.unwrap(),
-                    scenario_array: array,
+                    base_array: Arc::clone(base_array.unwrap()),
                     scenario: String::from(scenario),
-                    row_mapping: mapping,
-                };
-                panic!("not implemented");
+                    scenario_array: Arc::clone(array),
+                    row_mapping: Arc::clone(mapping),
+                }
             }
         }
     }
@@ -176,8 +176,8 @@ impl Store {
                                 .entry(field.name().to_string())
                                 .or_insert_with(|| {
                                     let mut chunk_array = Store::create_chunk_array(field.clone(), self.array_size);
-                                    chunk_array.set_array(Box::new(builder.finish()));
-                                    chunk_array
+                                    chunk_array.set_array(Arc::new(builder.finish()));
+                                    Arc::new(chunk_array)
                                 });
                             self.row_mapping_by_field_by_scenario
                                 .entry(scenario.to_string())
@@ -238,8 +238,9 @@ impl Store {
                     for element in string_array {
                         builder.append_value(*dic.map(element.unwrap().to_string())).unwrap();
                     }
-                    self.get_chunk_array(scenario, field)
-                        .set_array(Box::new(builder.finish()));
+                    let x = self.get_chunk_array(scenario, field);
+                    let mut x1: ChunkArray = x.borrow_mut();
+                    x1.set_array(Arc::new(builder.finish()));
                 }
                 _ => { panic!("type not supported {}", field.data_type()) }
             }
@@ -258,7 +259,8 @@ impl Store {
         }
         let array = builder.finish();
         let chunk_array = self.get_chunk_array(scenario, field);
-        chunk_array.set_array(Box::new(array));
+        chunk_array.borrow_mut().set_array(Arc::new(array));
+        // chunk_array.set_array(Arc::new(array));
     }
 
     fn build_scenario_array<T: ArrowPrimitiveType>(
@@ -297,8 +299,8 @@ impl Store {
                 .entry(field.name().to_string())
                 .or_insert_with(|| {
                     let mut chunk_array = Store::create_chunk_array(field.clone(), self.array_size);
-                    chunk_array.set_array(Box::new(builder.finish()));
-                    chunk_array
+                    chunk_array.set_array(Arc::new(builder.finish()));
+                    Arc::new(chunk_array)
                 });
             self.row_mapping_by_field_by_scenario
                 .entry(scenario.to_string())
@@ -308,7 +310,7 @@ impl Store {
         }
     }
 
-    fn get_chunk_array(&mut self, scenario: &str, field: &Field) -> &mut ChunkArray {
+    fn get_chunk_array(&mut self, scenario: &str, field: &Field) -> &mut Arc<ChunkArray> {
         self.vector_by_field_by_scenario
             .get_mut(scenario)
             .unwrap()

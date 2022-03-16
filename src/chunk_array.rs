@@ -1,21 +1,22 @@
 use std::borrow::Borrow;
+use std::sync::Arc;
 use arrow::array::{Array, ArrayRef, PrimitiveArray};
 
-use arrow::datatypes::{ArrowPrimitiveType, Field};
+use arrow::datatypes::{ArrowPrimitiveType, DataType, Field};
 use crate::row_mapping::RowMapping;
 
 #[derive(Debug)]
-pub enum ChunkArrayReader<'a> {
-    BaseReader { base_array: &'a ChunkArray },
+pub enum ChunkArrayReader {
+    BaseReader { base_array: Arc<ChunkArray> },
     ScenarioReader {
-        base_array: &'a ChunkArray,
-        scenario_array: &'a ChunkArray,
+        base_array: Arc<ChunkArray>,
         scenario: String,
-        row_mapping: &'a Box<dyn RowMapping>,
+        scenario_array: Arc<ChunkArray>,
+        row_mapping: Arc<dyn RowMapping>,
     },
 }
 
-impl<'a> ChunkArrayReader<'a> {
+impl ChunkArrayReader {
     pub fn read<T: ArrowPrimitiveType>(&self, row: u32) -> T::Native {
         match self {
             ChunkArrayReader::BaseReader { base_array } => {
@@ -34,6 +35,17 @@ impl<'a> ChunkArrayReader<'a> {
                         unsafe { array.value_unchecked(sr as usize) }
                     }
                 }
+            }
+        }
+    }
+
+    pub fn data_type(&self) -> &DataType {
+        match self {
+            ChunkArrayReader::BaseReader { base_array } => {
+                base_array.field.data_type()
+            }
+            ChunkArrayReader::ScenarioReader { base_array, scenario_array, scenario, row_mapping } => {
+                base_array.field.data_type()
             }
         }
     }
@@ -63,7 +75,7 @@ impl ChunkArray {
         unsafe { array.value_unchecked(row as usize) }
     }
 
-    pub fn set_array(&mut self, array: Box<dyn Array>) {
+    pub fn set_array(&mut self, array: Arc<dyn Array>) {
         self.array = Some(ArrayRef::from(array));
     }
 
