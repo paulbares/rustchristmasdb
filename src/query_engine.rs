@@ -146,7 +146,7 @@ impl<'a> QueryEngine<'a> {
                 let x = aggregators_by_scenario.values().next().unwrap();
                 for i in 0..query.measures.len() {
                     let measure = &query.measures[i];
-                    let source = self.store.get_scenario_chunk_array(scenario, &measure.field.to_string());
+                    let source = self.store.get_scenario_chunk_array(scenario, measure.field);
                     let aggregator = factory.create_with_destination(
                         Arc::new(source),
                         &*x[i],

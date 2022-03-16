@@ -137,7 +137,7 @@ impl<'a> BitmapRowIterableProvider<'a> {
         matching_rows
     }
 
-    fn apply_conditions(accepted_values_by_field: &HashMap<String, HashSet<u32>>, store: &'a Store, bitmap: &mut RoaringBitmap, fields: &Vec<String>, scenario: &str) {
+    fn apply_conditions(accepted_values_by_field: &HashMap<String, HashSet<u32>>, store: &'a Store, bitmap: &mut RoaringBitmap, fields: &[String], scenario: &str) {
         for field in fields {
             let mut tmp = RoaringBitmap::new();
             let values = accepted_values_by_field.get(field.as_str()).unwrap();

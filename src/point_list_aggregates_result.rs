@@ -51,7 +51,7 @@ impl<'a> PointListAggregateResult<'a> {
         }
     }
 
-    pub fn assertAggregate<K: 'static + std::fmt::Debug>(&self, coordinates: Vec<&str>, expected_value: K) { // FIXME why 'static is needed?
+    pub fn assert_aggregate<K: 'static + std::fmt::Debug>(&self, coordinates: Vec<&str>, expected_value: K) { // FIXME why 'static is needed?
         let mut buffer = Vec::with_capacity(self.point_names.len());
         for i in 0..coordinates.len() {
             buffer.push(self.dictionaries[i].get_position(&String::from(coordinates[i])).unwrap().clone());

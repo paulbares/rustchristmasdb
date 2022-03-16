@@ -18,9 +18,9 @@ fn test_wildcard_without_scenario_in_the_query() {
 
     let qe = QueryEngine::new(&store);
     let result = qe.execute(query);
-    result.assertAggregate(Vec::from(["syrup"]), 2f64);
-    result.assertAggregate(Vec::from(["tofu"]), 8f64);
-    result.assertAggregate(Vec::from(["mozzarella"]), 4f64);
+    result.assert_aggregate(Vec::from(["syrup"]), 2f64);
+    result.assert_aggregate(Vec::from(["tofu"]), 8f64);
+    result.assert_aggregate(Vec::from(["mozzarella"]), 4f64);
 }
 
 #[test]
@@ -35,9 +35,9 @@ fn test_wildcard_scenario_only() {
     let qe = QueryEngine::new(&store);
     let result = qe.execute(query);
     println!("{}", result);
-    result.assertAggregate(Vec::from(["base"]), 14f64);
-    result.assertAggregate(Vec::from(["s1"]), 13f64);
-    result.assertAggregate(Vec::from(["s2"]), 17f64);
+    result.assert_aggregate(Vec::from(["base"]), 14f64);
+    result.assert_aggregate(Vec::from(["s1"]), 13f64);
+    result.assert_aggregate(Vec::from(["s2"]), 17f64);
 }
 
 fn build_and_load() -> Store {
