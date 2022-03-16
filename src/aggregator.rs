@@ -78,8 +78,7 @@ impl Aggregator for SumUIntAggregator {
         builder
             .append_slice(buff.borrow().as_slice())
             .unwrap();
-        let array: PrimitiveArray<UInt64Type> = builder.finish();
-        self.destination = Some(array);
+        self.destination = Some(builder.finish());
     }
 
     fn as_any(&self) -> &dyn Any {

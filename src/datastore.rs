@@ -299,7 +299,7 @@ impl Store {
                 .or_insert(HashMap::new())
                 .entry(field.name().to_string())
                 .or_insert_with(|| {
-                    let mut chunk_array = Store::create_chunk_array(field.clone(), self.array_size);
+                    let chunk_array = Store::create_chunk_array(field.clone(), self.array_size);
                     chunk_array.set_array(Arc::new(builder.finish()));
                     Arc::new(chunk_array)
                 });
@@ -311,11 +311,11 @@ impl Store {
         }
     }
 
-    fn get_chunk_array(&mut self, scenario: &str, field: &Field) -> &mut Arc<ChunkArray> {
+    fn get_chunk_array(&mut self, scenario: &str, field: &Field) -> &Arc<ChunkArray> {
         self.vector_by_field_by_scenario
-            .get_mut(scenario)
+            .get(scenario)
             .unwrap()
-            .get_mut(field.name())
+            .get(field.name())
             .unwrap()
     }
 
