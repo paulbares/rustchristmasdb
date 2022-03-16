@@ -35,10 +35,9 @@ impl<'a> QueryEngine<'a> {
             let scenario = dictionary.read(&i).unwrap();
 
             let mut columns = Vec::with_capacity(point_size);
-            // columns.resize(point_size, None);
             for point_index in 0..point_size {
                 if point_index != scenario_index {
-                    columns[point_index] = Some(self.store.get_scenario_chunk_array(scenario.as_str(), point_names[point_index].as_str()));
+                    columns.push(Some(self.store.get_scenario_chunk_array(scenario.as_str(), point_names[point_index].as_str())));
                 } else {
                     columns.push(None);
                 }
