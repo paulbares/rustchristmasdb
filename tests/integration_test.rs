@@ -1,8 +1,8 @@
 use std::sync::Arc;
-use arrow::array::{Float64Array, Int64Array, StringArray, UInt32Array, UInt64Array};
+use arrow::array::{Float64Array, Int64Array, StringArray, UInt32Array};
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
-use arrow::util::pretty::print_batches;
+
 use rustchristmasdb::datastore::{CHUNK_DEFAULT_SIZE, MAIN_SCENARIO_NAME, SCENARIO_FIELD_NAME, Store};
 use rustchristmasdb::query::Query;
 use rustchristmasdb::query_engine::QueryEngine;

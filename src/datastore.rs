@@ -1,7 +1,7 @@
 use std::borrow::BorrowMut;
 use crate::chunk_array::{ChunkArray, ChunkArrayReader};
 use crate::row_mapping::{IdentityMapping, IntIntMapRowMapping, RowMapping};
-use arrow::array::{Array, ArrayBuilder, ArrayRef, Float64Builder, Int64Array, Int64Builder, PrimitiveArray, PrimitiveBuilder, StringArray, UInt32Array, UInt32Builder, UInt64Array, UInt64Builder};
+use arrow::array::{Array, ArrayBuilder, ArrayRef, Float64Builder, Int64Array, Int64Builder, PrimitiveArray, PrimitiveBuilder, StringArray, UInt32Array, UInt32Builder, UInt64Builder};
 use arrow::datatypes::{ArrowPrimitiveType, DataType, Field, Float64Type, Int64Type, Schema, SchemaRef, UInt32Type, UInt64Type};
 use arrow::record_batch::RecordBatch;
 use std::cell::RefCell;

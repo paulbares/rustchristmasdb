@@ -1,6 +1,4 @@
-use std::collections::HashMap;
 use crate::dictionary_provider::Dictionary;
-
 
 #[derive(Debug)]
 pub struct PointDictionary {

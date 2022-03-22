@@ -1,14 +1,15 @@
 use std::collections::HashMap;
 use arrow::compute::filter;
+use indexmap::IndexMap;
 
 pub struct Query<'a> {
-    pub coordinates: HashMap<String, Option<Vec<String>>>,
+    pub coordinates: IndexMap<String, Option<Vec<String>>>, // Use IndexMap to preserve the order.
     pub measures: Vec<AggregatedMeasure<'a>>,
 }
 
 impl<'a> Query<'a> {
     pub fn new() -> Query<'a> {
-        Query { coordinates: HashMap::new(), measures: Vec::new() }
+        Query { coordinates: IndexMap::new(), measures: Vec::new() }
     }
 
     pub fn add_wildcard_coordinate(&mut self, field: &str) -> &mut Query<'a> {
