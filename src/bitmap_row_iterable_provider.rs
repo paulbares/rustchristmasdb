@@ -17,7 +17,7 @@ pub struct RangeRowIterable {
 
 impl RowIterableProvider for RangeRowIterable {
     fn get(&self, _: &str) -> RowIterable {
-        RowIterable::Range { 0: self.range.clone() }
+        RowIterable::Range(self.range.clone())
     }
 }
 
@@ -97,10 +97,6 @@ impl<'a> BitmapRowIterableProvider<'a> {
                 fields_without_sim.push(field.clone());
             }
         }
-
-        println!("{:?}", accepted_values_by_field);
-        println!("{:?}", fields_with_sim);
-        println!("{:?}", fields_without_sim);
 
         // Lexical sort to have a deterministic order
         fields_without_sim.sort();

@@ -34,10 +34,68 @@ fn test_wildcard_scenario_only() {
 
     let qe = QueryEngine::new(&store);
     let result = qe.execute(query);
-    println!("{}", result);
     result.assert_aggregate(Vec::from(["base"]), 14f64);
     result.assert_aggregate(Vec::from(["s1"]), 13f64);
     result.assert_aggregate(Vec::from(["s2"]), 17f64);
+}
+
+#[test]
+fn test_wildcard_two_coordinates() {
+    let store = build_and_load();
+
+    let mut query = Query::new();
+    let query = query
+        .add_wildcard_coordinate(SCENARIO_FIELD_NAME)
+        .add_wildcard_coordinate("product")
+        .add_aggregated_measure("price", "sum");
+
+    let qe = QueryEngine::new(&store);
+    let result = qe.execute(query);
+    result.assert_aggregate(Vec::from(["syrup", "base"]), 2f64);
+    result.assert_aggregate(Vec::from(["tofu", "base"]), 8f64);
+    result.assert_aggregate(Vec::from(["mozzarella", "base"]), 4f64);
+    result.assert_aggregate(Vec::from(["syrup", "s1"]), 3f64);
+    result.assert_aggregate(Vec::from(["tofu", "s1"]), 6f64);
+    result.assert_aggregate(Vec::from(["mozzarella", "s1"]), 4f64);
+    result.assert_aggregate(Vec::from(["syrup", "s2"]), 4f64);
+    result.assert_aggregate(Vec::from(["tofu", "s2"]), 8f64);
+    result.assert_aggregate(Vec::from(["mozzarella", "s2"]), 5f64);
+}
+
+#[test]
+fn test_list_two_coordinates() {
+    let store = build_and_load();
+
+    let mut query = Query::new();
+    let query = query
+        .add_coordinates(SCENARIO_FIELD_NAME, Vec::from(["s2", "s1"]))
+        .add_coordinates("product", Vec::from(["syrup"]))
+        .add_aggregated_measure("price", "sum");
+
+    let qe = QueryEngine::new(&store);
+    let result = qe.execute(query);
+    result.assert_aggregate(Vec::from(["syrup", "s1"]), 3f64);
+    result.assert_aggregate(Vec::from(["syrup", "s2"]), 4f64);
+}
+
+#[test]
+fn test_list_three_coordinates() {
+    let store = build_and_load();
+
+    let mut query = Query::new();
+    let query = query
+        .add_coordinates(SCENARIO_FIELD_NAME, Vec::from(["s1", "s2"]))
+        .add_coordinates("product", Vec::from(["tofu", "syrup", "mozzarella"]))
+        .add_coordinates("category", Vec::from(["milk"]))
+        .add_aggregated_measure("price", "sum");
+
+    let qe = QueryEngine::new(&store);
+    let result = qe.execute(query);
+    println!("{}", result);
+    result.assert_aggregate(Vec::from(["s1", "tofu", "milk"]), 6f64);
+    result.assert_aggregate(Vec::from(["s1", "mozzarella", "milk"]), 4f64);
+    result.assert_aggregate(Vec::from(["s2", "tofu", "milk"]), 8f64);
+    result.assert_aggregate(Vec::from(["s2", "mozzarella", "milk"]), 5f64);
 }
 
 fn build_and_load() -> Store {
@@ -61,9 +119,9 @@ fn build_and_load() -> Store {
     store.load("s2", &s2_batch);
 
     // println!("Datastore: {:?}", store);
-    print_batches(&[main_batch]).unwrap();
-    print_batches(&[s1_batch]).unwrap();
-    print_batches(&[s2_batch]).unwrap();
+    // print_batches(&[main_batch]).unwrap();
+    // print_batches(&[s1_batch]).unwrap();
+    // print_batches(&[s2_batch]).unwrap();
     store
 }
 

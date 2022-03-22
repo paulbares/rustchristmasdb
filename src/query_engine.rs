@@ -60,7 +60,7 @@ impl<'a> QueryEngine<'a> {
                 let mut check = false;
                 for aggregator in aggregators.into_iter() {
                     if !check {
-                        // aggregator.get_destination().ensure_capacity(); // TODO to impl.
+                        aggregator.ensure_capacity(*destination_row as usize);
                         check = true;
                     }
                     aggregator.as_mut().aggregate(row, *destination_row);
@@ -134,7 +134,7 @@ impl<'a> QueryEngine<'a> {
             let mut aggregators: Vec<Box<dyn Aggregator>> = Vec::new();
             if index == 0 {
                 query.measures.iter().for_each(|measure| {
-                    let source = self.store.get_scenario_chunk_array(scenario, &measure.field.to_string());
+                    let source = self.store.get_scenario_chunk_array(scenario, measure.field);
                     let aggregator = factory.create(
                         Arc::new(source),
                         measure.aggregation_function,

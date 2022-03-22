@@ -15,6 +15,8 @@ pub trait Aggregator {
 
     fn finish(&mut self);
 
+    fn ensure_capacity(&self, destination_position: usize);
+
     fn as_any(&self) -> &dyn Any;
 
     fn get_destination(&self) -> &dyn Array;
@@ -63,7 +65,6 @@ impl SumUIntAggregator {
 impl Aggregator for SumUIntAggregator {
     fn aggregate(&mut self, source_position: u32, destination_position: u32) {
         let a: u64 = self.source.read::<UInt32Type>(source_position) as u64;
-        // let a: u64 = read::<UInt32Type>(&self.source.borrow(), source_position) as u64;
         let buff = &*self.buffer;
         let b: u64 = match buff.borrow().get(destination_position as usize) {
             None => { 0u64 }
@@ -79,6 +80,14 @@ impl Aggregator for SumUIntAggregator {
             .append_slice(buff.borrow().as_slice())
             .unwrap();
         self.destination = Some(builder.finish());
+    }
+
+    fn ensure_capacity(&self, destination_position: usize) {
+        let buff = &*self.buffer;
+        let len = buff.borrow().len();
+        if destination_position >= len {
+            buff.borrow_mut().resize(len + CHUNK_DEFAULT_SIZE, 0);
+        }
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -130,7 +139,6 @@ impl SumFloat64Aggregator {
 
 impl Aggregator for SumFloat64Aggregator {
     fn aggregate(&mut self, source_position: u32, destination_position: u32) {
-        // let a: f64 = read::<Float64Type>(&self.source, source_position);
         let a: f64 = self.source.read::<Float64Type>(source_position);
         let buff = &*self.buffer;
         let b: f64 = match buff.borrow().get(destination_position as usize) {
@@ -148,6 +156,14 @@ impl Aggregator for SumFloat64Aggregator {
             .unwrap();
         let array: PrimitiveArray<Float64Type> = builder.finish();
         self.destination = Some(array);
+    }
+
+    fn ensure_capacity(&self, destination_position: usize) {
+        let buff = &*self.buffer;
+        let len = buff.borrow().len();
+        if destination_position >= len {
+            buff.borrow_mut().resize(len + CHUNK_DEFAULT_SIZE, 0f64);
+        }
     }
 
     fn as_any(&self) -> &dyn Any {
