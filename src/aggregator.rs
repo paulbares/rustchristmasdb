@@ -1,12 +1,11 @@
 use std::any::Any;
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use arrow::array::{Array, ArrayRef, Float64Builder, PrimitiveArray, UInt64Builder};
+use arrow::array::{Array, Float64Builder, PrimitiveArray, UInt64Builder};
 
 use arrow::datatypes::{ArrowPrimitiveType, DataType, Field, Float64Type, UInt32Type, UInt64Type};
-use crate::chunk_array::{ChunkArray, ChunkArrayReader};
+use crate::chunk_array::{ChunkArrayReader};
 use crate::datastore::CHUNK_DEFAULT_SIZE;
 
 

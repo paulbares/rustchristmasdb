@@ -1,8 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
+
 use std::sync::Arc;
 
-use arrow::array::Array;
 use arrow::datatypes::UInt32Type;
 use crate::aggregator::{Aggregator, AggregatorFactory};
 use crate::datastore::{MAIN_SCENARIO_NAME, SCENARIO_FIELD_NAME, Store};

@@ -4,7 +4,7 @@ use std::ops::{BitAndAssign, Range};
 use arrow::datatypes::UInt32Type;
 
 use roaring::RoaringBitmap;
-use crate::chunk_array::{ChunkArray, ChunkArrayReader};
+use crate::chunk_array::{ChunkArrayReader};
 use crate::datastore::{MAIN_SCENARIO_NAME, SCENARIO_FIELD_NAME, Store};
 
 pub trait RowIterableProvider {

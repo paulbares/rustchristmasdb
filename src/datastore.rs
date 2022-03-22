@@ -174,7 +174,7 @@ impl Store {
                                 .or_insert(HashMap::new())
                                 .entry(field.name().to_string())
                                 .or_insert_with(|| {
-                                    let mut chunk_array = Store::create_chunk_array(field.clone(), self.array_size);
+                                    let chunk_array = Store::create_chunk_array(field.clone(), self.array_size);
                                     chunk_array.set_array(Arc::new(builder.finish()));
                                     Arc::new(chunk_array)
                                 });

@@ -1,15 +1,15 @@
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt;
-use std::fmt::Debug;
-use std::hash::Hash;
-use std::sync::Arc;
+
+
+
 use arrow::array;
 
 use arrow::array::{Array, Float64Array, UInt32Array};
-use arrow::datatypes::{DataType, Int16Type, Int32Type, Int64Type, Int8Type, IntervalUnit, TimeUnit, UInt16Type, UInt32Type, UInt64Type, UInt8Type};
+use arrow::datatypes::{DataType};
 use arrow::error::ArrowError;
-use arrow::util::display::make_string_from_decimal;
+
 use comfy_table::{Table, Cell};
 
 use crate::dictionary_provider::Dictionary;

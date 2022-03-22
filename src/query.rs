@@ -1,5 +1,5 @@
-use std::collections::HashMap;
-use arrow::compute::filter;
+
+
 use indexmap::IndexMap;
 
 pub struct Query<'a> {

@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::sync::Arc;
 use arrow::array::{Array, ArrayRef, PrimitiveArray};
@@ -21,7 +20,7 @@ impl ChunkArrayReader {
     pub fn read<T: ArrowPrimitiveType>(&self, row: u32) -> T::Native {
         match self {
             ChunkArrayReader::BaseReader { base_array } => ChunkArrayReader::read_array_at_position::<T>(base_array, row),
-            ChunkArrayReader::ScenarioReader { base_array, scenario_array, scenario, row_mapping } => {
+            ChunkArrayReader::ScenarioReader { base_array, scenario_array, scenario: _, row_mapping } => {
                 let scenario_row = row_mapping.get(&row);
                 match scenario_row {
                     None => ChunkArrayReader::read_array_at_position::<T>(base_array, row),
@@ -42,7 +41,7 @@ impl ChunkArrayReader {
             ChunkArrayReader::BaseReader { base_array } => {
                 base_array.field.data_type()
             }
-            ChunkArrayReader::ScenarioReader { base_array, scenario_array, scenario, row_mapping } => {
+            ChunkArrayReader::ScenarioReader { base_array, scenario_array: _, scenario: _, row_mapping: _ } => {
                 base_array.field.data_type()
             }
         }
