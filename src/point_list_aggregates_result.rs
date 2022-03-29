@@ -63,7 +63,7 @@ impl<'a> PointListAggregateResult<'a> {
         }
         let position = self.point_dictionary.get_position(&buffer[..]);
         match position {
-            None => {}
+            None => { panic!("point {:?} does not exist", coordinates) }
             Some(row) => {
                 for i in 0..self.aggregators.len() {
                     let array = self.aggregators[i].get_destination();
@@ -78,7 +78,7 @@ impl<'a> PointListAggregateResult<'a> {
         }
     }
 
-    fn size(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.point_dictionary.size()
     }
 

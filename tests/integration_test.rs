@@ -34,7 +34,7 @@ fn test_wildcard_scenario_only() {
 
     let qe = QueryEngine::new(&store);
     let result = qe.execute(query);
-    result.assert_aggregate(Vec::from(["base"]), 14f64);
+    result.assert_aggregate(Vec::from([MAIN_SCENARIO_NAME]), 14f64);
     result.assert_aggregate(Vec::from(["s1"]), 13f64);
     result.assert_aggregate(Vec::from(["s2"]), 17f64);
 }
@@ -51,15 +51,15 @@ fn test_wildcard_two_coordinates() {
 
     let qe = QueryEngine::new(&store);
     let result = qe.execute(query);
-    result.assert_aggregate(Vec::from(["syrup", "base"]), 2f64);
-    result.assert_aggregate(Vec::from(["tofu", "base"]), 8f64);
-    result.assert_aggregate(Vec::from(["mozzarella", "base"]), 4f64);
-    result.assert_aggregate(Vec::from(["syrup", "s1"]), 3f64);
-    result.assert_aggregate(Vec::from(["tofu", "s1"]), 6f64);
-    result.assert_aggregate(Vec::from(["mozzarella", "s1"]), 4f64);
-    result.assert_aggregate(Vec::from(["syrup", "s2"]), 4f64);
-    result.assert_aggregate(Vec::from(["tofu", "s2"]), 8f64);
-    result.assert_aggregate(Vec::from(["mozzarella", "s2"]), 5f64);
+    result.assert_aggregate(Vec::from([MAIN_SCENARIO_NAME, "syrup"]), 2f64);
+    result.assert_aggregate(Vec::from([MAIN_SCENARIO_NAME, "tofu"]), 8f64);
+    result.assert_aggregate(Vec::from([MAIN_SCENARIO_NAME, "mozzarella"]), 4f64);
+    result.assert_aggregate(Vec::from(["s1", "syrup"]), 3f64);
+    result.assert_aggregate(Vec::from(["s1", "tofu"]), 6f64);
+    result.assert_aggregate(Vec::from(["s1", "mozzarella"]), 4f64);
+    result.assert_aggregate(Vec::from(["s2", "syrup"]), 4f64);
+    result.assert_aggregate(Vec::from(["s2", "tofu"]), 8f64);
+    result.assert_aggregate(Vec::from(["s2", "mozzarella"]), 5f64);
 }
 
 #[test]
@@ -74,8 +74,8 @@ fn test_list_two_coordinates() {
 
     let qe = QueryEngine::new(&store);
     let result = qe.execute(query);
-    result.assert_aggregate(Vec::from(["syrup", "s1"]), 3f64);
-    result.assert_aggregate(Vec::from(["syrup", "s2"]), 4f64);
+    result.assert_aggregate(Vec::from(["s1", "syrup"]), 3f64);
+    result.assert_aggregate(Vec::from(["s2", "syrup"]), 4f64);
 }
 
 #[test]
@@ -91,11 +91,52 @@ fn test_list_three_coordinates() {
 
     let qe = QueryEngine::new(&store);
     let result = qe.execute(query);
-    println!("{}", result);
     result.assert_aggregate(Vec::from(["s1", "tofu", "milk"]), 6f64);
     result.assert_aggregate(Vec::from(["s1", "mozzarella", "milk"]), 4f64);
     result.assert_aggregate(Vec::from(["s2", "tofu", "milk"]), 8f64);
     result.assert_aggregate(Vec::from(["s2", "mozzarella", "milk"]), 5f64);
+}
+
+#[test]
+fn test_wildcard_on_other_coordinate_and_list_coordinates_on_scenario() {
+    let store = build_and_load();
+
+    let mut query = Query::new();
+    let query = query
+        .add_coordinates(SCENARIO_FIELD_NAME, Vec::from([MAIN_SCENARIO_NAME, "s2"]))
+        .add_wildcard_coordinate("product")
+        .add_aggregated_measure("price", "sum");
+
+    let qe = QueryEngine::new(&store);
+    let result = qe.execute(query);
+    assert_eq!(6, result.size());
+    result.assert_aggregate(Vec::from([MAIN_SCENARIO_NAME, "syrup"]), 2f64);
+    result.assert_aggregate(Vec::from([MAIN_SCENARIO_NAME, "tofu"]), 8f64);
+    result.assert_aggregate(Vec::from([MAIN_SCENARIO_NAME, "mozzarella"]), 4f64);
+    result.assert_aggregate(Vec::from(["s2", "syrup"]), 4f64);
+    result.assert_aggregate(Vec::from(["s2", "tofu"]), 8f64);
+    result.assert_aggregate(Vec::from(["s2", "mozzarella"]), 5f64);
+}
+
+#[test]
+fn test_wildcard_scenario_and_list_coordinates_on_other_coordinate() {
+    let store = build_and_load();
+
+    let mut query = Query::new();
+    let query = query
+        .add_wildcard_coordinate(SCENARIO_FIELD_NAME)
+        .add_coordinates("product", Vec::from(["syrup", "tofu"]))
+        .add_aggregated_measure("price", "sum");
+
+    let qe = QueryEngine::new(&store);
+    let result = qe.execute(query);
+    assert_eq!(6, result.size());
+    result.assert_aggregate(Vec::from([MAIN_SCENARIO_NAME, "syrup"]), 2f64);
+    result.assert_aggregate(Vec::from([MAIN_SCENARIO_NAME, "tofu"]), 8f64);
+    result.assert_aggregate(Vec::from(["s1", "syrup"]), 3f64);
+    result.assert_aggregate(Vec::from(["s1", "tofu"]), 6f64);
+    result.assert_aggregate(Vec::from(["s2", "syrup"]), 4f64);
+    result.assert_aggregate(Vec::from(["s2", "tofu"]), 8f64);
 }
 
 fn build_and_load() -> Store {

@@ -102,15 +102,16 @@ impl<'a> QueryEngine<'a> {
     }
 
     fn compute_queried_scenarios(&self, query: &Query) -> Vec<u32> {
-        let mut values: Option<Vec<String>> = None;
-        if query.coordinates.contains_key(SCENARIO_FIELD_NAME) {
-            // This condition handles wildcard coordinates.
-            if let None = query.coordinates.get(SCENARIO_FIELD_NAME).unwrap() {
-                values = Some(self.store.vector_by_field_by_scenario.keys().map(|k| k.to_string()).collect());
-            }
-        } else {
-            values = Some(vec![MAIN_SCENARIO_NAME.to_string()]);
-        }
+        let values =
+            if query.coordinates.contains_key(SCENARIO_FIELD_NAME) {
+                // This condition handles wildcard coordinates.
+                match query.coordinates.get(SCENARIO_FIELD_NAME).unwrap() {
+                    None => { Some(self.store.vector_by_field_by_scenario.keys().map(|k| k.to_string()).collect()) }
+                    Some(vv) => Some(vv.clone())
+                }
+            } else {
+                Some(vec![MAIN_SCENARIO_NAME.to_string()])
+            };
 
         let mut scenarios: Vec<u32> = Vec::new();
         let dictionary = self.store.get_dictionary(SCENARIO_FIELD_NAME);
