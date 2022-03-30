@@ -56,12 +56,8 @@ impl<'a> QueryEngine<'a> {
 
                 let destination_row = point_dictionary.map(point.as_slice());
                 // And then aggregate
-                let mut check = false;
                 for aggregator in aggregators.into_iter() {
-                    if !check {
-                        aggregator.ensure_capacity(*destination_row as usize);
-                        check = true;
-                    }
+                    aggregator.ensure_capacity(*destination_row as usize);
                     aggregator.as_mut().aggregate(row, *destination_row);
                 }
             });

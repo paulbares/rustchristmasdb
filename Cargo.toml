@@ -5,8 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dev-dependencies]
+criterion = "0.3"
+
 [dependencies]
-arrow = { version = "9.0.2", features = ["prettyprint"] }
+arrow = { version = "9.0.2", features = ["prettyprint", "csv"] }
 roaring = "0.8.1"
 comfy-table = "5.0.1"
 indexmap = "1.8.0"
+
+[[bench]]
+name = "loading"
+harness = false

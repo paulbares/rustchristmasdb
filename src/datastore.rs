@@ -28,7 +28,7 @@ pub struct Store {
     pub vector_by_field_by_scenario: HashMap<String, HashMap<String, Arc<ChunkArray>>>,
     pub row_mapping_by_field_by_scenario: HashMap<String, HashMap<String, Arc<dyn RowMapping>>>,
     pub dictionary_provider: DictionaryProvider,
-    pub primary_index: HashMap<i64, u64>, // FIXME suppose the key is a i64. Should be generic.
+    pub primary_index: HashMap<i64, u64>, // FIXME it assumes the key is a i64. Should be generic.
 }
 
 impl Store {

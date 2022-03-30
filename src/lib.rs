@@ -4,7 +4,7 @@ mod dictionary_provider;
 mod row_mapping;
 mod point_dictionary;
 mod aggregator;
-mod point_list_aggregates_result;
+pub mod point_list_aggregates_result;
 pub mod query;
 pub mod query_engine;
 mod bitmap_row_iterable_provider;
